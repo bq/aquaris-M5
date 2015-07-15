@@ -794,6 +794,27 @@ config SENSORS_BMA2X2
 	help
 	  If you say yes here, you get support for Bosch Sensortec's
 	  acceleration sensors BMA255/BMA254/BMA355/BMA250E/BMA222E/BMA280.
+      
+config SENSORS_EPL2182
+        tristate "epl2182 device driver"
+        depends on I2C
+        default n
+        help
+          Say Y here you want to enable for the epl2182
+          light and proximity sensors driver.
+
+          To compile this driver as a module, choose M here
+
+config SENSORS_LTR559
+        tristate "LTR559 device driver"
+        depends on I2C
+        default n
+        help
+          Say Y here you want to enable for the sitronix ltr559
+          light and proximity sensors driver.
+
+          To compile this driver as a module, choose M here: the
+          module will be called stk3x1x.
 
 config SENSORS_BMA2X2_ENABLE_INT1
 	tristate "BMA2X2 acceleration sensor interrupt INT1 support"
@@ -830,5 +851,58 @@ config SENSORS_BMI058
 	 If you say yes here, you get support for Bosch Sensortec's
 	 sensor driver of BMI058.
 
+config SENSORS_BMM050
+	tristate "BMM050 Magnetic Sensor Driver"
+	depends on I2C
+	help
+	 If you say yes here, you get support for Bosch Sensortec's
+	 sensor BMM050 Magnetic Sensor
+	 
+config HALL
+	tristate "HALL Switch"
+	help
+	 If you say yes here, you get support for hall switch control device
+
+config SENSORS_BMG
+        tristate "Bosch Gyroscope Sensor Driver"
+        depends on I2C
+        help
+         If you say yes here, you get support for Bosch Sensortec's
+         gyroscope sensor drivers of BMG160/BMI055/BMI058 e.t.c.
+
+config SENSORS_BMG_FIFO
+	tristate "Bosch Gyroscope FIFO Support"
+	depends on SENSORS_BMG
+	help
+	If you say yes here, you get support for Gyroscope sensor FIFO operations.
+
+config SENSORS_BMI160
+	tristate "BMI160 Sensor Support"
+	depends on I2C || SPI_MASTER
+	help
+	 If you say yes here, you get support for Bosch Sensortec's
+	 sensor driver of BMI160.
+
+config SENSORS_BMI160_I2C
+	tristate "support I2C bus communication"
+	depends on SENSORS_BMI160 && I2C
+	help
+	 If you say yes here, you get support Bosch Sensortec's BMI160 sensor hooked to an I2C bus.
+
+config SENSORS_BMI160_SPI
+	tristate "support SPI bus communication"
+	depends on SENSORS_BMI160 && SPI_MASTER
+	help
+	 If you say yes here, you get support Bosch Sensortec's BMI160 sensor hooked to an SPI bus.
+
+config BMI160_MAG_INTERFACE_SUPPORT
+	tristate "BMI160 Sensor mag interface support"
+	depends on SENSORS_BMI160
+	help
+	 If you say yes here, you get support for Bosch Sensortec's
+	 sensor driver of BMI160 with mag sensor support.
+
+config FTS_GESTURE
+	bool "FT5x06 doble tap"
 endif
 

@@ -31,14 +31,39 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&smb_int_default>;
 			qcom,chg-inhibit-disabled;
+//			qcom,stat-pulsed-irq;
+		
+    /* battery-profile selection properties */
+			qcom,batt-profile-select;
+			qcom,shdn-after-pwroff;
+			qcom,smb1360-vadc = <&pm8916_vadc>;
+			qcom,batt-id-vref-uv = <1800000>;
+			qcom,batt-id-rpullup-kohm = <100>;
+ 			qcom,profile-a-rid-kohm = <200>;
+			qcom,profile-b-rid-kohm = <102>;
+			qcom,fg-batt-capacity-mah = <2850>;
+			qcom,fg-cc-soc-coeff = <0x81C0>;
+			qcom,fg-delta-soc = <1>;
+
+			qcom,fg-cutoff-voltage-mv = <3450>;
+			qcom,fg-iterm-ma = <100>;
+			qcom,fg-ibatt-standby-ma = <200>;
+			qcom,fg-cc-to-cv-mv = <4328>;
+			qcom,thermistor-c1-coeff = <0x86C8>;
+
 			qcom,float-voltage-mv = <4350>;
-			qcom,iterm-ma = <200>;
+			qcom,iterm-ma = <100>;
+			//qcom,charging-timeout = <384>;
+			qcom,fg-reset-at-pon;
+			qcom,fg-reset-thresold-mv = <200>;
+			qcom,otg-batt-curr-limit = <1500>;
 			qcom,recharge-thresh-mv = <100>;
 			qcom,thermal-mitigation = <1500 700 600 0>;
 			qcom,fg-auto-recharge-soc = <99>;
 			regulator-name = "smb1360_otg_vreg";
+			qcom,empty-soc-disabled;
 		};
-	};
+    };
 
 	i2c@78b9000 { /* BLSP1 QUP5 */
 		focaltech@38 {
@@ -57,9 +82,10 @@
 			focaltech,family-id = <0x36>;
 			focaltech,reset-gpio = <&msm_gpio 12 0x0>;
 			focaltech,irq-gpio = <&msm_gpio 13 0x2008>;
-			focaltech,display-coords = <0 0 480 854>;
-			focaltech,panel-coords = <0 0 480 950>;
-			focaltech,button-map= <139 102 158>;
+			focaltech,display-coords = <0 0 720 1280>;
+			focaltech,panel-coords = <0 0 720 1280>;
+			focaltech,button-map= <580 102 158>;
+			focaltech,fw-vkey-support;
 			focaltech,no-force-update;
 			focaltech,i2c-pull-up;
 			focaltech,group-id = <1>;
@@ -80,11 +106,11 @@
 	gen-vkeys {
 		compatible = "qcom,gen-vkeys";
 		label = "ft5x06_ts";
-		qcom,disp-maxx = <480>;
-		qcom,disp-maxy = <854>;
-		qcom,panel-maxx = <480>;
-		qcom,panel-maxy = <946>;
-		qcom,key-codes = <139 172 158>;
+		qcom,disp-maxx = <720>;
+		qcom,disp-maxy = <1280>;
+		qcom,panel-maxx = <720>;
+		qcom,panel-maxy = <1600>;
+		qcom,key-codes = <580 172 158>;
 		qcom,y-offset = <0>;
 	};
 };
@@ -101,7 +127,8 @@
 
 &usb_otg {
 	qcom,hsusb-otg-mode = <3>;
-	qcom,usbid-gpio = <&msm_gpio 110 0>;
+	qcom,usbid-gpio = <&msm_gpio 111 0>;
+	qcom,usbid-switch = <&msm_gpio 0 0>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&usbid_default>;
 	vbus_otg-supply = <&smb1360_otg_supply>;

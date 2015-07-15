@@ -856,7 +856,9 @@ int subsystem_restart_dev(struct subsys_device *dev)
 		pr_err("%s crashed during a system poweroff/shutdown.\n", name);
 		return -EBUSY;
 	}
-
+	//#if defined(CONFIG_L8720_CTM_A01) || defined(CONFIG_L8720_MCX_A01)
+	dev->restart_level = 1; //added by shenyuzhong    
+	//#endif
 	pr_info("Restart sequence requested for %s, restart_level = %s.\n",
 		name, restart_levels[dev->restart_level]);
 

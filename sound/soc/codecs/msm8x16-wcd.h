@@ -162,6 +162,10 @@ struct msm8916_asoc_mach_data {
 	int us_euro_gpio;
 	int mclk_freq;
 	int lb_mode;
+#if defined(CONFIG_AUDIO_CODEC_WM8998_SWITCH)
+	int previous_bias_level;
+	int fll_out;
+#endif
 	atomic_t mclk_rsc_ref;
 	atomic_t mclk_enabled;
 	struct mutex cdc_mclk_mutex;

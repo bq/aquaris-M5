@@ -29,6 +29,12 @@ int msm_camera_fill_vreg_params(struct camera_vreg_t *cam_vreg,
 	uint16_t i = 0;
 	int      j = 0;
 
+	if((cam_vreg == NULL) || (num_vreg == 0))
+	{
+		pr_err("%s:Camera all vreg controlled by gpio \n", __func__);
+		return 0;
+	}
+
 	/* Validate input parameters */
 	if (!cam_vreg || !power_setting) {
 		pr_err("%s:%d failed: cam_vreg %p power_setting %p", __func__,
@@ -1054,7 +1060,7 @@ int msm_camera_get_dt_vreg_data(struct device_node *of_node,
 	count = of_property_count_strings(of_node, "qcom,cam-vreg-name");
 	CDBG("%s qcom,cam-vreg-name count %d\n", __func__, count);
 
-	if (!count)
+	if ((count == -EINVAL) || (count == 0))
 		return 0;
 
 	vreg = kzalloc(sizeof(*vreg) * count, GFP_KERNEL);
@@ -1308,7 +1314,7 @@ int msm_camera_power_up(struct msm_camera_power_ctrl_t *ctrl,
 					SENSOR_GPIO_MAX);
 				goto power_up_failed;
 			}
-			if (power_setting->seq_val < ctrl->num_vreg)
+			if (power_setting->seq_val <= ctrl->num_vreg)
 				msm_camera_config_single_vreg(ctrl->dev,
 				&ctrl->cam_vreg[power_setting->seq_val],
 				(struct regulator **)&power_setting->data[0],
@@ -1530,6 +1536,9 @@ int msm_camera_power_down(struct msm_camera_power_ctrl_t *ctrl,
 		}
 	}
 	if (ctrl->cam_pinctrl_status) {
+		devm_pinctrl_put(ctrl->pinctrl_info.pinctrl);
+		msm_camera_pinctrl_init(ctrl);
+
 		ret = pinctrl_select_state(ctrl->pinctrl_info.pinctrl,
 				ctrl->pinctrl_info.gpio_state_suspend);
 		if (ret)

@@ -13,6 +13,9 @@
 #include "msm8916-qrd.dtsi"
 #include "dsi-panel-otm8019a-fwvga-video.dtsi"
 #include "msm8916-camera-sensor-qrd-skui.dtsi"
+#include "dsi-panel-trulyotm1288a-720p-video.dtsi"
+#include "dsi-panel-trulyotm1288a-720p-cmd.dtsi"
+#include "dsi-panel-dijingILI9881C-720p-video.dtsi"
 
 &soc {
 	gpio-leds {
@@ -22,7 +25,7 @@
 		pinctrl-0 = <&button_backlight_off>;
 
 		keypad-backlight {
-			gpios = <&msm_gpio 119 0>;
+			gpios = <&msm_gpio 34 0>;
 			label = "button-backlight";
 			linux,default-trigger = "none";
 		};
@@ -34,8 +37,8 @@
 		qcom,msm-snd-card-id = <0>;
 		qcom,msm-ext-pa = "primary";
 		qcom,msm-codec-type = "internal";
-		qcom,msm-mbhc-hphl-swh = <1>;
-		qcom,msm-mbhc-gnd-swh = <0>;
+		qcom,msm-mbhc-hphl-swh = <0>;
+		qcom,msm-mbhc-gnd-swh = <1>;
 		qcom,msm-hs-micbias-type = "internal";
 		qcom,audio-routing =
 			"RX_BIAS", "MCLK",
@@ -104,11 +107,16 @@
 	qcom,pins = <&gp 25>;
 };
 
+&pmx_mdss_te {
+	qcom,num-grp-pins = <1>;
+	qcom,pins = <&gp 24>;
+};
+
 &mdss_dsi0 {
 	qcom,dsi-pref-prim-pan = <&dsi_otm8019a_fwvga_video>;
 	pinctrl-names = "mdss_default", "mdss_sleep";
-	pinctrl-0 = <&mdss_dsi_active>;
-	pinctrl-1 = <&mdss_dsi_suspend>;
+	pinctrl-0 = <&mdss_dsi_active &mdss_te_active>;
+	pinctrl-1 = <&mdss_dsi_suspend &mdss_te_suspend>;
 
 	qcom,platform-reset-gpio = <&msm_gpio 25 0>;
 };
@@ -161,20 +169,20 @@
 		avago,ga-value = <768>;
 	};
 
-	bosch@18 { /* Accelerometer sensor */
-		compatible = "bosch,bma2x2";
-		reg = <0x18>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&bma2x2_int1_default &bma2x2_int2_default>;
-		interrupt-parent = <&msm_gpio>;
-		interrupts = <112 0x2002>;
-		vdd-supply = <&pm8916_l17>;
-		vio-supply = <&pm8916_l6>;
-		bosch,init-interval = <200>;
-		bosch,place = <2>;
-		bosch,gpio-int1 = <&msm_gpio 112 0x2002>;
-		bosch,gpio-int2 = <&msm_gpio 114 0x2002>;
-	};
+	//bosch@18 { /* Accelerometer sensor */
+	//	compatible = "bosch,bma2x2";
+	//	reg = <0x18>;
+	//	pinctrl-names = "default";
+	//	pinctrl-0 = <&bma2x2_int1_default &bma2x2_int2_default>;
+	//	interrupt-parent = <&msm_gpio>;
+	//	interrupts = <112 0x2002>;
+	//	vdd-supply = <&pm8916_l17>;
+	//	vio-supply = <&pm8916_l6>;
+	//	bosch,init-interval = <200>;
+	//	bosch,place = <2>;
+	//	bosch,gpio-int1 = <&msm_gpio 112 0x2002>;
+	//	bosch,gpio-int2 = <&msm_gpio 114 0x2002>;
+	//};
 
 	memsic@30 { /* Magnetic field sensor */
 		compatible = "memsic,mmc3416x";
@@ -199,6 +207,76 @@
 		invn,gpio-int = <&msm_gpio 115 0x2>;
 		invn,place = "Portrait Up Back Side";
 	};
+
+	stk@48 {
+		compatible = "stk,stk3x1x";
+		reg = <0x48>;
+		interrupt-parent = <&msm_gpio>;
+		interrupts = <113 0x2>;
+		vdd-supply = <&pm8916_l17>;
+		vio-supply = <&pm8916_l6>;
+		stk,irq-gpio = <&msm_gpio 113 0x02>;
+		stk,transmittance = <340>;
+		stk,state-reg = <0x00>;
+		stk,psctrl-reg = <0x71>;
+		stk,alsctrl-reg = <0x38>;
+		stk,ledctrl-reg = <0xFF>;
+		stk,wait-reg = <0x07>;
+		stk,ps-thdh = <150>;
+		stk,ps-thdl = <100>;
+		stk,use-fir;
+	};
+};
+
+&i2c_1{ /* blsp1 qup1 */
+		bosch@18 { /* accelerometer sensor */
+			compatible = "bosch,bma2x2";
+			reg = <0x18>;
+			vdd-supply = <&pm8916_l17>;
+			vio-supply = <&pm8916_l6>;
+			bosch,init-interval = <200>;
+			bosch,place = <3>;
+		};
+
+		bosch@68 { /* gyroscope sensor */
+			compatible = "bosch,bmg160";
+			reg = <0x68>;
+			vdd-supply = <&pm8916_l17>;
+			vio-supply = <&pm8916_l6>;
+			bosch,init-interval = <200>;
+			bosch,place = <3>;
+		};
+
+		bosch@10 {/* magnetic sensor */
+			compatible = "bosch,bmm050";
+			reg = <0x10>;
+			vdd-supply = <&pm8916_l17>;
+			vio-supply = <&pm8916_l6>;
+			bosch,init-interval = <200>;
+			bosch,place = <6>;
+			bosch,auto-report;
+		};
+};
+
+&i2c_3{ /* BLSP1 QUP3 */
+		awinic@45 { /* Breath Light-Driven */
+			/*
+			led_Imax				current;         //0=omA, 1=5mA, 2=10mA, 3=15mA,
+			unsigned int			rise_time;      //0=0.13s, 1=0.26s, 2=0.52s, 3=1.04s, 4=2.08s, 5=4.16s, 6=8.32s, 7=16.64s
+			unsigned int			hold_time;     //0=0.13s, 1=0.26s, 2=0.52s, 3=1.04s, 4=2.08s, 5=4.16s,
+			unsigned int			fall_time;       //0=0.13s, 1=0.26s, 2=0.52s, 3=1.04s, 4=2.08s, 5=4.16s, 6=8.32s, 7=16.64s
+			unsigned int			off_time;       //0=0.13s, 1=0.26s, 2=0.52s, 3=1.04s, 4=2.08s, 5=4.16s, 6=8.32s, 7=16.64s
+			unsigned int			delay_time;   //0=0.0s, 1=0.13s, 2=0.26s, 3=0.52s, 4=1.04s, 5=2.08s, 6=4.16s, 7=8.32s, 8=16.64s
+			unsigned int			period_num; //0=unlimited, 1, 2, 3, 4, ......, 15
+			*/
+			compatible = "awinic,aw2013";
+			reg = <0x45>;
+			vdd-supply = <&pm8916_l17>;
+			vcc_i2c-supply = <&pm8916_l6>;
+			awinic,ledr-parameter_array = <3 0 3 0 5 0 0>;
+			awinic,ledg-parameter_array = <3 0 3 0 5 0 0>;
+			awinic,ledb-parameter_array = <3 0 3 0 5 0 0>;
+		};
 };
 
 &sdc2_cd_on {

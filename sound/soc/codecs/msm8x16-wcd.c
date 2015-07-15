@@ -72,7 +72,6 @@
 #define MAX_ON_DEMAND_SUPPLY_NAME_LENGTH	64
 
 #define BUS_DOWN 1
-
 /*
  *50 Milliseconds sufficient for DSP bring up in the modem
  * after Sub System Restart
@@ -550,7 +549,7 @@ static int msm8x16_wcd_write(struct snd_soc_codec *codec, unsigned int reg,
 				reg);
 		return -ENODEV;
 	} else
-		return __msm8x16_wcd_reg_write(codec, reg, (u8)value);
+	return __msm8x16_wcd_reg_write(codec, reg, (u8)value);
 }
 
 static unsigned int msm8x16_wcd_read(struct snd_soc_codec *codec,
@@ -580,7 +579,7 @@ static unsigned int msm8x16_wcd_read(struct snd_soc_codec *codec,
 				reg);
 		return -ENODEV;
 	} else
-		val = __msm8x16_wcd_reg_read(codec, reg);
+	val = __msm8x16_wcd_reg_read(codec, reg);
 	dev_dbg(codec->dev, "%s: Read from reg 0x%x val 0x%x\n",
 					__func__, reg, val);
 	return val;
@@ -3202,10 +3201,12 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"IIR2 INP1 MUX", "DEC2", "DEC2 MUX"},
 	{"MIC BIAS Internal1", NULL, "INT_LDO_H"},
 	{"MIC BIAS Internal2", NULL, "INT_LDO_H"},
+	{"MIC BIAS Internal3", NULL, "INT_LDO_H"},
 	{"MIC BIAS External", NULL, "INT_LDO_H"},
 	{"MIC BIAS External2", NULL, "INT_LDO_H"},
 	{"MIC BIAS Internal1", NULL, "MICBIAS_REGULATOR"},
 	{"MIC BIAS Internal2", NULL, "MICBIAS_REGULATOR"},
+	{"MIC BIAS Internal3", NULL, "MICBIAS_REGULATOR"},
 	{"MIC BIAS External", NULL, "MICBIAS_REGULATOR"},
 	{"MIC BIAS External2", NULL, "MICBIAS_REGULATOR"},
 };
@@ -3698,15 +3699,22 @@ static const struct snd_soc_dapm_widget msm8x16_wcd_dapm_widgets[] = {
 		&rx2_mix1_inp1_mux),
 	SND_SOC_DAPM_MUX("RX2 MIX1 INP2", SND_SOC_NOPM, 0, 0,
 		&rx2_mix1_inp2_mux),
+#if defined(CONFIG_L8720_COMMON) || defined(CONFIG_AUDIO_CODEC_WM8998_SWITCH)
+// None.	xuke @ 20141212	For CODEC WM8998.
+#else
 	SND_SOC_DAPM_MUX("RX2 MIX1 INP3", SND_SOC_NOPM, 0, 0,
 		&rx2_mix1_inp3_mux),
-
+#endif
 	SND_SOC_DAPM_MUX("RX3 MIX1 INP1", SND_SOC_NOPM, 0, 0,
 		&rx3_mix1_inp1_mux),
 	SND_SOC_DAPM_MUX("RX3 MIX1 INP2", SND_SOC_NOPM, 0, 0,
 		&rx3_mix1_inp2_mux),
+#if defined(CONFIG_L8720_COMMON) || defined(CONFIG_AUDIO_CODEC_WM8998_SWITCH)
+// None.	xuke @ 20141212	For CODEC WM8998.
+#else
 	SND_SOC_DAPM_MUX("RX3 MIX1 INP3", SND_SOC_NOPM, 0, 0,
 		&rx3_mix1_inp3_mux),
+#endif
 
 	SND_SOC_DAPM_MUX("RX1 MIX2 INP1", SND_SOC_NOPM, 0, 0,
 		&rx1_mix2_inp1_mux),
@@ -3947,7 +3955,6 @@ static int msm8x16_wcd_device_down(struct snd_soc_codec *codec)
 		MSM8X16_WCD_A_ANALOG_TX_1_EN, 0x3);
 	msm8x16_wcd_write(codec,
 		MSM8X16_WCD_A_ANALOG_TX_2_EN, 0x3);
-	/* Disable PA to avoid pop during codec bring up */
 	snd_soc_update_bits(codec, MSM8X16_WCD_A_ANALOG_RX_HPH_CNP_EN,
 			0x30, 0x00);
 	snd_soc_update_bits(codec, MSM8X16_WCD_A_ANALOG_SPKR_DRV_CTL,
@@ -3977,8 +3984,8 @@ static int msm8x16_wcd_device_up(struct snd_soc_codec *codec)
 	dev_dbg(codec->dev, "%s: device up!\n", __func__);
 
 	mutex_lock(&codec->mutex);
-
 	clear_bit(BUS_DOWN, &msm8x16_wcd_priv->status_mask);
+
 
 	for (reg = 0; reg < ARRAY_SIZE(msm8x16_wcd_reset_reg_defaults); reg++)
 		if (msm8x16_wcd_reg_readable[reg])
@@ -4137,9 +4144,13 @@ static int msm8x16_wcd_codec_probe(struct snd_soc_codec *codec)
 		kfree(msm8x16_wcd_priv);
 		return -ENOMEM;
 	}
+#if defined(CONFIG_L8720_COMMON) // || defined(CONFIG_AUDIO_CODEC_WM8998_SWITCH)	// xuke @ 20141212	For CODEC WM8998.
+	msm8x16_wcd_priv->spkdrv_reg = NULL;
+#else
 	msm8x16_wcd_priv->spkdrv_reg =
 		wcd8x16_wcd_codec_find_regulator(codec->control_data,
 						MSM89XX_VDD_SPKDRV_NAME);
+#endif
 	msm8x16_wcd_priv->pmic_rev = snd_soc_read(codec,
 					MSM8X16_WCD_A_DIGITAL_REVISION1);
 	msm8x16_wcd_priv->codec_version = snd_soc_read(codec,
@@ -4199,8 +4210,13 @@ static int msm8x16_wcd_codec_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
+	printk("yht--At %d In (%s)\n",__LINE__, __FUNCTION__);
+	#if defined(CONFIG_AUDIO_CODEC_WM8998_SWITCH)
+	//I don't want to create jack by qcom driver
+	#else
 	wcd_mbhc_init(&msm8x16_wcd_priv->mbhc, codec, &mbhc_cb, &intr_ids,
 			true);
+	#endif
 
 	msm8x16_wcd_priv->mclk_enabled = false;
 	msm8x16_wcd_priv->clock_active = false;
@@ -4630,7 +4646,7 @@ static int msm8x16_wcd_spmi_resume(struct spmi_device *spmi)
 
 	wcd_resource = spmi_get_resource(spmi, NULL, IORESOURCE_MEM, 0);
 	if (!wcd_resource) {
-		dev_err(&spmi->dev, "Unable to get CDC SPMI resource\n");
+		printk("%s, Unable to get CDC SPMI resource\n", __func__);
 		return -ENXIO;
 	}
 
@@ -4646,7 +4662,7 @@ static int msm8x16_wcd_spmi_suspend(struct spmi_device *spmi,
 
 	wcd_resource = spmi_get_resource(spmi, NULL, IORESOURCE_MEM, 0);
 	if (!wcd_resource) {
-		dev_err(&spmi->dev, "Unable to get CDC SPMI resource\n");
+		printk("%s, Unable to get CDC SPMI resource\n", __func__);
 		return -ENXIO;
 	}
 

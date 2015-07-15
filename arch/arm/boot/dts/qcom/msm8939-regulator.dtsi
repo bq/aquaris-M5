@@ -14,6 +14,7 @@
 
 &i2c_4 {
 	ncp6335d: ncp6335d-regulator@1c {
+	/*	
 		compatible = "onnn,ncp6335d-regulator";
 		reg = <0x1c>;
 		onnn,vsel = <0>;
@@ -29,6 +30,8 @@
 		onnn,vsel-gpio = <&msm_gpio 111 1>;
 		onnn,discharge-enable;
 		onnn,restore-reg;
+	*/
+		
 	};
 
 	fan53555: fan53555-regulator@60 {
@@ -54,7 +57,8 @@
 		regulator-name = "spk_vreg";
 		startup-delay-us = <0>;
 		enable-active-high;
-		gpio = <&msm_gpio 121 0>;
+		/* xuke @ 20141212	Changed from 121 to 101 because of CODEC RESET pin. */
+		gpio = <&msm_gpio 101 0>;
 	};
 
 	mem_acc_vreg_corner: regulator@1942130 {
@@ -86,7 +90,7 @@
 		qcom,cpr-fuse-corners = <3>;
 		qcom,cpr-voltage-ceiling = <1050000 1150000 1350000>;
 		qcom,cpr-voltage-floor = <1050000 1050000 1137500>;
-		vdd-apc-supply = <&ncp6335d>;
+		vdd-apc-supply = <&fan53555>;
 
 		qcom,vdd-mx-corner-map = <4 5 7>;
 		qcom,vdd-mx-vmin-method = <4>;

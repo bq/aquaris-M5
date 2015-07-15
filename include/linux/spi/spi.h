@@ -76,7 +76,11 @@ struct spi_device {
 	u8			chip_select;
 	u8			mode;
 #define	SPI_CPHA	0x01			/* clock phase */
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+#define	SPI_CPOL	0x00			/* clock polarity */
+#else
 #define	SPI_CPOL	0x02			/* clock polarity */
+#endif
 #define	SPI_MODE_0	(0|0)			/* (original MicroWire) */
 #define	SPI_MODE_1	(0|SPI_CPHA)
 #define	SPI_MODE_2	(SPI_CPOL|0)

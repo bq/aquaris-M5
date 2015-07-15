@@ -73,6 +73,7 @@ static int __init fpe_setup(char *line)
 __setup("fpe=", fpe_setup);
 #endif
 
+int is_tp_driver_loaded;
 extern void paging_init(const struct machine_desc *desc);
 extern void sanity_check_meminfo(void);
 extern enum reboot_mode reboot_mode;

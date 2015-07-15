@@ -61,6 +61,8 @@
 #include <asm/psci.h>
 #include <asm/efi.h>
 
+int is_tp_driver_loaded;
+
 unsigned int processor_id;
 EXPORT_SYMBOL(processor_id);
 
