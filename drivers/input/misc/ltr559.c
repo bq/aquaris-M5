@@ -471,7 +471,7 @@ static int ltr559_als_read(struct i2c_client *client)
 		} else if ((ratio >= 450) && (ratio < 640)) {
 				ch0_co = 42785;
 				ch1_co = 19548;
-		} else if ((ratio >= 640) && (ratio < 850)) {
+		} else if ((ratio >= 640) && (ratio < 920)) {
 				ch0_co = 5926;
 				ch1_co = -1185;
 		} else if (ratio >= 920) {
@@ -479,7 +479,7 @@ static int ltr559_als_read(struct i2c_client *client)
 				ch1_co = 0;
 		}
 		luxdata = (alsval_ch0 * ch0_co - alsval_ch1 * ch1_co) / 10000;
-		return luxdata;
+		return luxdata;//((luxdata * 185) / 460 + (luxdata / 100));
 }
 
 static void ltr559_ps_work_func(struct work_struct *work)
