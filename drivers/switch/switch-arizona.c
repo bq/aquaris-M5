@@ -136,7 +136,7 @@ static const struct arizona_micd_range micd_default_ranges[] = {
 	{ .max =  260, .key = BTN_2 },
 	{ .max = 350, .key = BTN_3 },
 	{ .max = 470, .key = BTN_4 },
-	{ .max = 525, .key = BTN_5 },
+	{ .max = 575, .key = BTN_5 },
 #else
 	{ .max =  11, .key = BTN_0 },
 	{ .max =  28, .key = BTN_1 },
@@ -2050,7 +2050,8 @@ static int arizona_extcon_probe(struct platform_device *pdev)
 #if defined(CONFIG_AUDIO_CODEC_FLORIDA) || defined(CONFIG_AUDIO_CODEC_WM8998_SWITCH) //noise from earphone when inserting in or pulling out it
 		regmap_update_bits(arizona->regmap, ARIZONA_MIC_DETECT_1,
 				   ARIZONA_MICD_RATE_MASK,
-				   0 << ARIZONA_MICD_RATE_SHIFT);
+				   //0 << ARIZONA_MICD_RATE_SHIFT);
+				   arizona->pdata.micd_rate << ARIZONA_MICD_RATE_SHIFT);
 #else
 	if (arizona->pdata.micd_rate)
 		regmap_update_bits(arizona->regmap, ARIZONA_MIC_DETECT_1,

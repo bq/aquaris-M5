@@ -517,6 +517,12 @@ static void subsystem_ramdump(struct subsys_device *dev, void *data)
 	dev->do_ramdump_on_put = false;
 }
 
+static void subsystem_freeup(struct subsys_device *dev, void *data)
+{
+	if (dev->desc->freeup)
+		dev->desc->freeup(dev->desc);
+}
+
 static void subsystem_powerup(struct subsys_device *dev, void *data)
 {
 	const char *name = dev->desc->name;
@@ -774,6 +780,7 @@ static void subsystem_restart_wq_func(struct work_struct *work)
 
 	/* Collect ram dumps for all subsystems in order here */
 	for_each_subsys_device(list, count, NULL, subsystem_ramdump);
+	for_each_subsys_device(list, count, NULL, subsystem_freeup);
 
 	notify_each_subsys_device(list, count, SUBSYS_BEFORE_POWERUP, NULL);
 	for_each_subsys_device(list, count, NULL, subsystem_powerup);

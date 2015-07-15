@@ -1099,6 +1099,11 @@ static int smb1360_get_prop_current_now(struct smb1360_chip *chip)
 	pr_debug("reg[0]=0x%02x reg[1]=0x%02x current=%d\n",
 				reg[0], reg[1], temp * 1000);
 
+	if (chip->rsense_10mohm){
+		temp = temp*2;
+		pr_debug("double current=%d", temp*1000);
+	}
+
 	return temp * 1000;
 }
 
