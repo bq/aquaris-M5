@@ -135,6 +135,13 @@
 #define MXT_MAX_BLOCK_READ	250
 #define MXT_MAX_BLOCK_WRITE	20
 
+#if defined(CONFIG_ESD_CHECK_A_REGISTER)
+static struct task_struct *esd_thread = NULL;
+static DECLARE_WAIT_QUEUE_HEAD(esd_waiter);
+static u8 suspend_flag = 0;
+//static write_data_to_read(struct mxt_data *data); 
+#endif
+
 /* Object types */
 //#if !defined(CONFIG_MXT_PLUGIN_SUPPORT)
 #if 0
@@ -1671,6 +1678,70 @@ static void mxt_input_button(struct mxt_data *data, u8 *message)
 		button = !(message[1] & (1 << i));
 		input_report_key(input_dev, pdata->t19_keymap[i], button);
 	}
+}
+#endif
+
+#if defined(CONFIG_ESD_CHECK_A_REGISTER)
+static int esd_check_function(void *data1)
+{
+	int i;
+	char *read_data;
+	size_t read_size;
+	u16 t38_reg;
+	u8 retval2;
+	u8  T38DataPos = 2;
+	struct mxt_data *data = data1;
+	struct i2c_client *client = data->client;
+	read_size = sizeof(struct mxt_info);
+
+#if (MXT_DBG)
+	printk("[mxt]esd_check_function \n");
+#endif
+	t38_reg = data->T38_address;
+
+	read_data = kzalloc(read_size, GFP_KERNEL);
+
+	memset(read_data, 1, read_size);
+#if (MXT_DBG)
+	for(i=0;i<read_size;i++)
+		printk("[mxt]read_data = 0x%2x\n", read_data[i]);
+#endif
+	do {
+		if(suspend_flag == 1) {
+			set_current_state(TASK_INTERRUPTIBLE);
+			wait_event_interruptible(esd_waiter, suspend_flag == 0);
+			set_current_state(TASK_RUNNING);
+		} 
+		msleep(2000);
+		// write_data_to_read(data);
+		if(suspend_flag == 0) {
+			retval2 = __mxt_read_reg(client, t38_reg+T38DataPos , read_size, read_data);
+			for(i=0;i<read_size;i++)
+#if (MXT_DBG)
+				printk("[mxt] read_data = 0x%2x, retval2=%d\n", read_data[i], retval2);
+#endif
+
+		if ((retval2 != 0) && ((read_data[1] != 0xae)||(read_data[5] != 0xae)))   //a->61 b->62 c->63  d->64
+		{
+			printk("mxt TP esd error,reset TP\n");
+			gpio_set_value(data->pdata->power_ldo_gpio, 0);
+			gpio_set_value(data->pdata->gpio_reset, 0);
+			msleep(10);
+			gpio_set_value(data->pdata->power_ldo_gpio, 1);
+			msleep(50);
+			gpio_set_value(data->pdata->gpio_reset, 1);
+			msleep(200);
+	  		//   write_data_to_read(data);
+		}
+		memset(read_data, 0, read_size);
+#if (MXT_DBG)
+		for(i=0;i<read_size;i++)
+			printk("[mxt]  read_data = 0x%2x\n", read_data[i]);
+#endif
+		}
+	} while (!kthread_should_stop());
+
+	return 0;
 }
 #endif
 
@@ -5039,6 +5110,9 @@ static ssize_t mxt_update_fw_store(struct device *dev,
 	int error;
 
 	dev_info(dev, "mxt_update_fw_store\n");
+#if defined(CONFIG_ESD_CHECK_A_REGISTER)
+	suspend_flag = 1;    //esd stop when update 2.2.AA.fw firmware
+#endif
 
 	error = mxt_update_file_name(dev, &data->fw_name, buf, count, false);
 	if (error)
@@ -5139,6 +5213,14 @@ static ssize_t mxt_update_cfg_store(struct device *dev,
 	ret = count;
 
 	//mxt_acquire_irq(data);
+#ifdef SUPPORT_READ_TP_VERSION
+	memset(tp_version, 0, sizeof(tp_version));
+	sprintf(tp_version, "[fw]V%u.%u-0x%06X,[ic]Atmel\n", data->info->version >> 4, data->info->version & 0xf, data->config_crc);
+	if (!strncmp(data->plug.suffix_pid_name, ".05", 3) || !strncmp(data->plug.suffix_pid_name, ".06", 3))
+		init_tp_fm_info(0,tp_version,"yushun");
+	else
+		init_tp_fm_info(0,tp_version,"truly");
+#endif
 
 #if defined(CONFIG_MXT_SELFCAP_TUNE)
 	//mxt_self_tune(data, false);
@@ -5845,6 +5927,22 @@ err_free_mem:
 	return error;
 }
 
+#if 0//defined(CONFIG_ESD_CHECK_A_REGISTER)
+static write_data_to_read(struct mxt_data *data)  //swfesd
+{
+	//static int __mxt_write_reg(struct i2c_client *client, u16 reg, u16 len,const void *val)
+	int error;
+	struct i2c_client *client = data->client;
+	u16 t38_reg;
+	u8  t38_temp[7]={'d','d','d','d','d','d','d'};//"d";0x64
+	u8  T38DataPos = 2;
+	t38_reg=data->T38_address;
+	error = __mxt_write_reg(client, t38_reg + T38DataPos, 7, t38_temp);
+	if(error)
+		printk("atmel write reg error\n");
+}
+#endif
+
 static int mxt_pinctrl_init(struct mxt_data *data)
 {
 	int retval;
@@ -6127,7 +6225,7 @@ static int  mxt_probe(struct i2c_client *client,
 #endif
 #ifdef SUPPORT_READ_TP_VERSION
 	memset(tp_version, 0, sizeof(tp_version));
-	sprintf(tp_version, "[fw]0x%06X,[ic]Atmel\n",data->config_crc);
+	sprintf(tp_version, "[fw]V%u.%u-0x%06X,[ic]Atmel\n", data->info->version >> 4, data->info->version & 0xf, data->config_crc);
 	if (!strncmp(data->plug.suffix_pid_name, ".05", 3) || !strncmp(data->plug.suffix_pid_name, ".06", 3))
 		init_tp_fm_info(0,tp_version,"yushun");
 	else
@@ -6149,7 +6247,17 @@ static int  mxt_probe(struct i2c_client *client,
 	data->early_suspend.resume = mxt_late_resume;
 	register_early_suspend(&data->early_suspend);
 #endif
-    is_tp_driver_loaded = 1;
+
+#if defined(CONFIG_ESD_CHECK_A_REGISTER)
+	// waitful_data = data;
+	//  write_data_to_read(data);//swfesd
+	esd_thread = kthread_run(esd_check_function, data, "tpd_esd");
+	if ( IS_ERR(esd_thread) ) {
+		printk(" %s: failed to create kernel thread\n", __func__);
+		goto err_remove_mem_access_attr;
+	}
+#endif
+	is_tp_driver_loaded = 1;
 
 	dev_info(&client->dev, "Mxt probe finished\n");
 
@@ -6257,6 +6365,9 @@ static int mxt_suspend(struct device *dev)
 	struct mxt_data *data = i2c_get_clientdata(client);
 	struct input_dev *input_dev = data->input_dev;
 
+#if defined(CONFIG_ESD_CHECK_A_REGISTER)
+	suspend_flag = 1;//stop esd check
+#endif
 //	dev_info(dev, "mxt_suspend\n");
 
 	if (!input_dev)  //maybe bootup in bootloader mode
@@ -6280,6 +6391,11 @@ static int mxt_resume(struct device *dev)
 
 #if (MXT_DBG)
 	dev_info(dev, "mxt_resume\n");
+#endif
+
+#if defined(CONFIG_ESD_CHECK_A_REGISTER)
+        suspend_flag = 0;
+        wake_up_interruptible(&esd_waiter);//zbl add to wake up esd check
 #endif
 
 	if (!input_dev)  //maybe bootup in bootloader mode

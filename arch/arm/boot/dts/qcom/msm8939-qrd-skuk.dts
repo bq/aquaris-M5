@@ -39,8 +39,9 @@
 		qcom,profile-a-rid-kohm = <50>;
 		qcom,profile-b-rid-kohm = <200>;
 		qcom,fg-batt-capacity-mah = <3030>;
-		qcom,fg-cc-soc-coeff = <0x81C0>;
+		qcom,fg-cc-soc-coeff = <0x8168>;
 		qcom,fg-delta-soc = <1>;
+                qcom,fg-soc-min = <3>;
 
 		qcom,fg-cutoff-voltage-mv = <3450>;
 		qcom,fg-iterm-ma = <100>;

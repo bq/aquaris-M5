@@ -1014,7 +1014,7 @@
 			wm8998@1a { // Wolfson codec. 
 			compatible = "wlf,wm8998";
 			reg = <0x1a>;
-			wlf,clk-src = "BBCLK2";
+			//wlf,clk-src = "BBCLK2";
 			//wlf,clk-gpio = <&pm8916_gpios 2 0>;//yht remove
 			clocks = <&clock_rpm clk_bb_clk2>;
 			clock-names = "ref_clk";

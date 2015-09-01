@@ -50,8 +50,9 @@ static irqreturn_t hall_interrupt(int irq, void *data)
 //	}
 	disable_irq_nosync(irq);
 	hall_gpio = gpio_get_value(hall_info->irq_gpio);
-	pr_err("Macle irq interrupt gpio = %d\n", hall_gpio);
+	pr_err("%s: irq gpio value = %d\n", __func__, hall_gpio);
 	if(hall_gpio == hall_info->hall_switch_state){
+		enable_irq(irq);
 		return IRQ_HANDLED;
 	}else{
 		hall_info->hall_switch_state = hall_gpio;

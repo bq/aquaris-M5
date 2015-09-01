@@ -131,25 +131,6 @@ i2c_3: i2c@78b7000 { /*BLSP1 QUP3*/
 	};
 
 
-//yht add 0116
-	slim_msm_1: slim@fe12f000 {
-		cell-index = <1>;
-		compatible = "qcom,slim-ngd";
-		reg = <0xfe12f000 0x35000>,
-		      <0xfe104000 0x20000>;
-		reg-names = "slimbus_physical", "slimbus_bam_physical";
-		interrupts = <0 163 0 0 164 0>;
-		interrupt-names = "slimbus_irq", "slimbus_bam_irq";
-		qcom,apps-ch-pipes = <0x60000000>;
-		qcom,ea-pc = <0x30>;
-
-		arizona_codec {
-			compatible = "qcom,florida-slim-audio";
-			elemental-addr = [00 00 10 51 2f 01];
-		};
-	};
-//yht add end
-
 	gpio-leds {
 		compatible = "gpio-leds";
 		status = "okay";

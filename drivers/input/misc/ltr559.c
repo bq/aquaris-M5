@@ -39,6 +39,9 @@
 #include <linux/of_gpio.h>
 #include <linux/sensors.h>
 #include <linux/regulator/consumer.h>
+#if defined(CONFIG_L9100_COMMON)
+#include <linux/wakelock.h>
+#endif
 
 #define SENSOR_NAME			"proximity"
 #define LTR559_DRV_NAME		"ltr559"
@@ -85,6 +88,9 @@ struct ltr559_data {
 
 	struct delayed_work ps_work;
 	struct delayed_work als_work;
+#if defined(CONFIG_L9100_COMMON)
+	struct wake_lock ltr559_ps_wakelock;
+#endif
 
 	u8 ps_open_state;
 	u8 als_open_state;
@@ -516,11 +522,16 @@ static void ltr559_ps_work_func(struct work_struct *work)
 				goto workout;
 		}
 		psdata = ((psval_hi & 7) << 8) | psval_lo;
-		printk("%s ps data=%d(0x%x), psval_hi=0x%x, psval_lo=0x%x\n",__func__,psdata,psdata,psval_hi,psval_lo);
+		printk("%s: psdata=%d(0x%x), near_thrd=%u, far_thrd=%u, dynamic_noise=%u\n",
+			   __func__, psdata, (u32)psdata, data->platform_data->prox_threshold,
+			   data->platform_data->prox_hsyteresis_threshold, data->dynamic_noise);
+
 		if(psdata >= data->platform_data->prox_threshold){			
 			data->ps_state = 0; //near
 			ltr559_set_ps_threshold(client, LTR559_PS_THRES_LOW_0, data->platform_data->prox_hsyteresis_threshold);
 			ltr559_set_ps_threshold(client, LTR559_PS_THRES_UP_0, 0x07ff);
+			printk("%s: near, update near_thrd=%u, far_thrd=%u\n",
+				   __func__, 0x7ff, data->platform_data->prox_hsyteresis_threshold);
 		} else if (psdata <= data->platform_data->prox_hsyteresis_threshold){
 			data->ps_state = 1; //far
 			
@@ -555,7 +566,8 @@ static void ltr559_ps_work_func(struct work_struct *work)
 #if defined(CONFIG_L9100_COMMON)||defined(CONFIG_L8720_COMMON)
 			   if (data->dynamic_noise > 20 && psdata < (data->dynamic_noise - 50) ) {
 				  data->dynamic_noise = psdata;
-				  if(psdata < 200){
+				  if(psdata < 100) {
+				  }else if(psdata < 200){
 					  data->platform_data->prox_threshold = psdata+130;
 					  data->platform_data->prox_hsyteresis_threshold = psdata+60;
 				  }else if(psdata < 500){
@@ -569,20 +581,26 @@ static void ltr559_ps_work_func(struct work_struct *work)
 					  data->platform_data->prox_hsyteresis_threshold= 1700;
 					  pr_err("ltr559 the proximity sensor rubber or structure is error!\n");
 				  }
+				  printk("%s: NEW prox_threshold=%u, prox_hsyteresis_threshold=%u !!!\n",
+						 __func__, data->platform_data->prox_threshold,
+					     data->platform_data->prox_hsyteresis_threshold);
 			   }
 #endif
 			
 			ltr559_set_ps_threshold(client, LTR559_PS_THRES_LOW_0, 0);
 			ltr559_set_ps_threshold(client, LTR559_PS_THRES_UP_0, data->platform_data->prox_threshold);
+			printk("%s: far, update near_thrd=%u, far_thrd=0\n",
+				   __func__, data->platform_data->prox_threshold);
 		} else {
 			data->ps_state = ps_state_last;
 		}
 
+		printk("%s: ps_state_last = %u, ps_state = %u\n", __func__, ps_state_last, data->ps_state);
 		if((ps_state_last != data->ps_state) || (data->ps_state == 0)) //need report the input event constant when near 
 		{
 			input_report_abs(data->input_dev_ps, ABS_DISTANCE, data->ps_state);
 			input_sync(data->input_dev_ps);
-			printk("%s, report ABS_DISTANCE=%s\n",__func__, data->ps_state ? "far" : "near");
+			printk("%s: report ABS_DISTANCE=%s\n",__func__, data->ps_state ? "far" : "near");
 			
 			ps_state_last = data->ps_state; 	// xuke @ 20140828	Report ABS value only if the state changed.
 		}
@@ -1112,6 +1130,12 @@ static int ltr559_ps_set_enable(struct sensors_classdev *sensors_cdev,
 		return -EFAULT;
 	}
 
+#if defined(CONFIG_L9100_COMMON)
+	if (enable == 1)
+		wake_lock(&data->ltr559_ps_wakelock);
+	else if (enable == 0)
+		wake_unlock(&data->ltr559_ps_wakelock);
+#endif
 	data->ps_open_state = enable;
 	pr_err("%s: enable=(%d), data->ps_open_state=%d\n", __func__, enable, data->ps_open_state);
 	return ret;
@@ -1132,7 +1156,7 @@ static int ltr559_suspend(struct device *dev)
 static int ltr559_resume(struct device *dev)
 {
 	struct ltr559_data *data = dev_get_drvdata(dev);
-	int ret;
+	int ret = 0;
 
 	printk("%s\n", __func__);
 	mutex_lock(&data->lockw);
@@ -1622,6 +1646,9 @@ int ltr559_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		goto exit_unregister_als_class;
 	}
 	double_tap_data = data;
+#if defined(CONFIG_L9100_COMMON)
+	wake_lock_init(&data->ltr559_ps_wakelock, WAKE_LOCK_SUSPEND, "ltr559-ps-wakelock");
+#endif
 //lct.panguangyi set enable to trigger calibration at boot
 	pdata->prox_default_noise=0;
 	ltr559_ps_enable(client,1);
@@ -1683,7 +1710,10 @@ static int ltr559_remove(struct i2c_client *client)
 	
 	input_free_device(data->input_dev_als);
 	input_free_device(data->input_dev_ps);
-	
+
+#if defined(CONFIG_L9100_COMMON)
+	wake_lock_destroy(&data->ltr559_ps_wakelock);
+#endif
 	ltr559_gpio_irq_free(data);
 	
 	sysfs_remove_group(&client->dev.kobj, &ltr559_attr_group);	
