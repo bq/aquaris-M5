@@ -574,8 +574,6 @@ int mdss_mdp_perf_calc_pipe(struct mdss_mdp_pipe *pipe,
 		}
 
 		quota = mult_frac(quota, v_total, dst.h);
-		if (!mixer->ctl->is_video_mode)
-			quota = mult_frac(quota, h_total, xres);
 	}
 	perf->bw_overlap = quota;
 

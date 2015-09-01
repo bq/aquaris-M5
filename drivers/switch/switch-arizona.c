@@ -134,9 +134,9 @@ static const struct arizona_micd_range micd_default_ranges[] = {
 	{ .max =  75,  .key = BTN_0 },
 	{ .max =  100, .key = BTN_1 },
 	{ .max =  260, .key = BTN_2 },
-	{ .max = 350, .key = BTN_3 },
-	{ .max = 470, .key = BTN_4 },
-	{ .max = 575, .key = BTN_5 },
+	{ .max = 300, .key = BTN_3 },//350
+	{ .max = 310, .key = BTN_4 },//470
+	{ .max = 575, .key = BTN_5 },//575
 #else
 	{ .max =  11, .key = BTN_0 },
 	{ .max =  28, .key = BTN_1 },
