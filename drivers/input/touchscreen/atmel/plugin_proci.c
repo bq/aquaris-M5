@@ -1275,7 +1275,7 @@ static struct reg_config mxt_dwakeup_cfg[] = {
 		.offset = 0,.buf = {0}, .len = 1, .mask = 0x1,.flag = BIT_MASK(P_COMMON)},
 
 	{.reg = MXT_GEN_POWERCONFIG_T7,
-		.offset = 0,.buf = {0x3C,0x0A}, .len = 2, .mask = 0,.flag = BIT_MASK(OP_SET)},
+		.offset = 0,.buf = {0x28,0x0A}, .len = 2, .mask = 0,.flag = BIT_MASK(OP_SET)},
 
 	{.reg = MXT_PROCI_AUXTOUCHCONFIG_T104,
 		.offset = 0,.buf = {0x0}, .len = 1, .mask = 0x1,.flag = BIT_MASK(P_COMMON)},
@@ -1289,7 +1289,7 @@ static struct reg_config mxt_dwakeup_cfg[] = {
 	//{.reg = MXT_PROCI_TOUCHSUPPRESSION_T42,
 	//	.offset = 0,.buf = {0}, .len = 1, .mask = 0x01,.flag = BIT_MASK(P_COMMON)},
 	
-	{.reg = MXT_SPT_TIMER_T61,.instance = 0,
+/*	{.reg = MXT_SPT_TIMER_T61,.instance = 0,
 		.offset = 0,.buf = {0X01}, .len = 1, .mask = 0x01,.flag = BIT_MASK(P_COMMON)},
 		
 	{.reg = MXT_SPT_DYNAMICCONFIGURATIONCONTROLLER_T70,.instance = 0,
@@ -1303,7 +1303,7 @@ static struct reg_config mxt_dwakeup_cfg[] = {
 		
 	{.reg = MXT_SPT_DYNAMICCONFIGURATIONCONTROLLER_T70,.instance = 3,
 		.offset = 0,.buf = {0X01}, .len = 1, .mask = 0x01,.flag = BIT_MASK(P_COMMON)},
-	
+*/
 //	{.reg = MXT_SPT_USERDATA_T38,
 //			.offset = 0,.buf = {0}, .len = 0, .mask = 0x1, .flag = BIT_MASK(OP_SET),  .sleep = 100},
 #endif

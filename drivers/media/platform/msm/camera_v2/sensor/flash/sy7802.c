@@ -41,6 +41,7 @@ static struct msm_camera_i2c_reg_array sy7802_release_array[] = {
 };
 
 static struct msm_camera_i2c_reg_array sy7802_low_array[] = {
+	{0xA0, 0x2C},
 	{0x10, 0x1A},//torch
 };
 
