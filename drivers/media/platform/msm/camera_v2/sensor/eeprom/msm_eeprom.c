@@ -17,6 +17,7 @@
 #include "msm_sd.h"
 #include "msm_cci.h"
 #include "msm_eeprom.h"
+#include "hi545.h"
 
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
@@ -25,6 +26,13 @@ DEFINE_MSM_MUTEX(msm_eeprom_mutex);
 #ifdef CONFIG_COMPAT
 static struct v4l2_file_operations msm_eeprom_v4l2_subdev_fops;
 #endif
+uint8_t g_imx214_otp_module_id = 0;
+uint8_t g_ov5670_otp_module_id = 0;
+uint8_t g_s5k3l2_otp_module_id = 0;
+uint8_t g_s5k5e2_otp_module_id = 0;
+
+uint8_t g_otp_driver_ic_id = 0;	// add by gpg to diff truly module for L870x
+
 /**
   * msm_eeprom_verify_sum - verify crc32 checksum
   * @mem:	data buffer
@@ -259,6 +267,144 @@ static const struct v4l2_subdev_internal_ops msm_eeprom_internal_ops = {
 	.open = msm_eeprom_open,
 	.close = msm_eeprom_close,
 };
+static int ov5670_read_eeprom_memory(struct msm_eeprom_ctrl_t *e_ctrl,
+			      struct msm_eeprom_memory_block_t *block)
+{
+	int rc = 0;
+	uint8_t temp;
+	uint8_t *memptr = block->mapdata;
+	int i = 0;
+	CDBG("%s Enter\n", __func__);
+	if (!e_ctrl) {
+		pr_err("%s e_ctrl is NULL", __func__);
+		return -EINVAL;
+	}
+	if(memptr == NULL)
+	{
+		pr_err("%s please check dts config", __func__);
+		return -EINVAL;
+	}
+
+	e_ctrl->i2c_client.addr_type = MSM_CAMERA_I2C_WORD_ADDR;
+
+	rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read(&(e_ctrl->i2c_client),0x5002,(uint16_t*)&temp,MSM_CAMERA_I2C_BYTE_DATA);
+	CDBG("%s temp = %x value =%x\n", __func__,temp,temp&(~0x08));
+	rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write(&(e_ctrl->i2c_client), 0x5002, temp&(~0x08), MSM_CAMERA_I2C_BYTE_DATA);
+	if(rc < 0) return rc;
+
+	rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write(&(e_ctrl->i2c_client), 0x100, 0x01, MSM_CAMERA_I2C_BYTE_DATA);
+	for(i = 0x7010;i<=0x7029;i++)
+	{
+		e_ctrl->i2c_client.i2c_func_tbl->i2c_write(&(e_ctrl->i2c_client), i, 0x0, MSM_CAMERA_I2C_BYTE_DATA);
+	}
+	
+	rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write(&(e_ctrl->i2c_client), 0x3d84, 0xC0, MSM_CAMERA_I2C_BYTE_DATA);
+	if(rc < 0) return rc;
+		
+	//start address 0x7010
+	rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write(&(e_ctrl->i2c_client), 0x3d88, 0x70, MSM_CAMERA_I2C_BYTE_DATA);
+	if(rc < 0) return rc;
+	rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write(&(e_ctrl->i2c_client), 0x3d89, 0x10, MSM_CAMERA_I2C_BYTE_DATA);
+	if(rc < 0) return rc;
+	//end address 0x7029
+	rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write(&(e_ctrl->i2c_client), 0x3d8A, 0x70, MSM_CAMERA_I2C_BYTE_DATA);
+	if(rc < 0) return rc;
+	rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write(&(e_ctrl->i2c_client), 0x3d8B, 0x29, MSM_CAMERA_I2C_BYTE_DATA);
+	if(rc < 0) return rc;
+	rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write(&(e_ctrl->i2c_client), 0x3d81, 0x1, MSM_CAMERA_I2C_BYTE_DATA);
+	if(rc < 0) return rc;
+
+	msleep(50);
+	rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read_seq(&(e_ctrl->i2c_client), 0x7010,memptr, 26);
+
+	if(rc < 0) return rc;
+	msleep(30);
+	for(i = 0x7010;i<=0x7029;i++)
+	{
+		e_ctrl->i2c_client.i2c_func_tbl->i2c_write(&(e_ctrl->i2c_client), i, 0x0, MSM_CAMERA_I2C_BYTE_DATA);
+	}
+
+	rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write(&(e_ctrl->i2c_client), 0x100, 0x00, MSM_CAMERA_I2C_BYTE_DATA);
+
+	rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read(&(e_ctrl->i2c_client),0x5002,(uint16_t*)&temp,MSM_CAMERA_I2C_BYTE_DATA);
+	
+	e_ctrl->i2c_client.i2c_func_tbl->i2c_write(&(e_ctrl->i2c_client), 0x5002, temp|0x08, MSM_CAMERA_I2C_BYTE_DATA);
+	return rc;
+	
+}
+static int custom_hynix_define_otp_read(struct msm_eeprom_ctrl_t *e_ctrl,
+			      struct msm_eeprom_memory_block_t *block)
+{
+	int m = 0;
+	int k = 0;
+	uint32_t addr = 0;		
+	int rc =0;	
+	uint8_t *memptr = block->mapdata;
+	struct msm_eeprom_memory_map_t  *emap = &block->map[4];
+	int count = 0;
+
+	e_ctrl->i2c_client.addr_type = MSM_CAMERA_I2C_WORD_ADDR;
+
+	CDBG("custom_hynix_define_otp_read emap->mem.addr=%x,emap->mem.valid_size=%d",emap->mem.addr,emap->mem.valid_size);
+
+	rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write(&(e_ctrl->i2c_client), 0x118, 0x01, MSM_CAMERA_I2C_BYTE_DATA);
+
+	CDBG("write 0x118 rc = %d",rc);
+//initial  sensor
+	//e_ctrl->i2c_client.addr_type = MSM_CAMERA_I2C_WORD_ADDR;
+	for (m = 0 ; m<sizeof(init_reg_array0)/(sizeof(init_reg_array0[0])) ; m++){
+		rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write(&(e_ctrl->i2c_client), 
+				init_reg_array0[m].reg_addr, init_reg_array0[m].reg_data, MSM_CAMERA_I2C_WORD_DATA);
+		
+		if (rc < 0) {
+			pr_err("%s: init  failed\n", __func__);
+			CDBG("count = %d",count);
+			return rc;
+		}
+		else
+		{
+			count++;
+		}
+	}
+// set to otp mode
+	for(m = 0 ; m < sizeof(init_otp_array)/sizeof(init_otp_array[0]) ; m++){
+		rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write(&(e_ctrl->i2c_client), 
+				init_otp_array[m].reg_addr, init_otp_array[m].reg_data, MSM_CAMERA_I2C_BYTE_DATA);
+		mdelay(init_otp_array[m].delay);
+		
+		if (rc < 0) {
+			pr_err("%s: to otp mode  failed\n", __func__);
+			return rc;
+		}
+	}
+
+	for(addr = emap->mem.addr , k = 0 ; k < (emap->mem.valid_size) ; addr++ , k++){
+		rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write(&(e_ctrl->i2c_client), 0x10A, (addr>>8)&0xff, MSM_CAMERA_I2C_BYTE_DATA);
+		rc |= e_ctrl->i2c_client.i2c_func_tbl->i2c_write(&(e_ctrl->i2c_client), 0x10B, addr & 0xff, MSM_CAMERA_I2C_BYTE_DATA);
+		rc |= e_ctrl->i2c_client.i2c_func_tbl->i2c_write(&(e_ctrl->i2c_client), 0x102, 0, MSM_CAMERA_I2C_BYTE_DATA);
+		rc |=e_ctrl->i2c_client.addr_type = MSM_CAMERA_I2C_WORD_DATA;
+		rc |=e_ctrl->i2c_client.i2c_func_tbl->i2c_read_seq(&(e_ctrl->i2c_client), 0x108,memptr, 1);
+		CDBG("custom:addr :[0x%x] value :(%d)\n",addr,*memptr);
+		memptr++;  // must
+		if (rc < 0) {
+			pr_err("%s: read failed\n", __func__);
+			return rc;
+		}
+	}
+
+	//set  to normol mode
+	for(m = 0; m<sizeof(otp_to_norm_mode_array)/sizeof(otp_to_norm_mode_array[0]);m++){
+		rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write(&(e_ctrl->i2c_client),
+					otp_to_norm_mode_array[m].reg_addr, otp_to_norm_mode_array[m].reg_data, 1);
+		if (rc < 0) {
+			pr_err("%s: to normal  failed\n", __func__);
+			return rc;
+		}
+	}
+	
+	return rc;	
+			
+}
 /**
   * read_eeprom_memory() - read map data into buffer
   * @e_ctrl:	eeprom control struct
@@ -936,11 +1082,11 @@ static int eeprom_config_read_cal_data32(struct msm_eeprom_ctrl_t *e_ctrl,
 		cdata.cfg.read_data.num_bytes);
 
 	/* should only be called once.  free kernel resource */
-	if (!rc) {
-		kfree(e_ctrl->cal_data.mapdata);
-		kfree(e_ctrl->cal_data.map);
-		memset(&e_ctrl->cal_data, 0, sizeof(e_ctrl->cal_data));
-	}
+//	if (!rc) {
+//		kfree(e_ctrl->cal_data.mapdata);
+//		kfree(e_ctrl->cal_data.map);
+//		memset(&e_ctrl->cal_data, 0, sizeof(e_ctrl->cal_data));
+//	}
 	return rc;
 }
 
@@ -1012,6 +1158,143 @@ static long msm_eeprom_subdev_fops_ioctl32(struct file *file, unsigned int cmd,
 }
 
 #endif
+static int imx214_set_otp_module_id(struct msm_eeprom_ctrl_t *e_ctrl)
+{
+
+	int pageIndex = 0;
+	uint8_t mid;
+	uint8_t wb_flag;
+	uint8_t PageCount = 64;
+	uint8_t *buffer = e_ctrl->cal_data.mapdata;
+
+	for (pageIndex =0;pageIndex<3;pageIndex++)
+	{
+		mid = buffer[1+PageCount*pageIndex];
+		CDBG("%s mid=%x\n", __func__,mid);
+		if(mid == 0x7) //imx214 ofilm
+		{
+			wb_flag = buffer[PageCount*pageIndex];
+			CDBG("%s ofilm wb_flag=%x\n", __func__,wb_flag);
+			if(wb_flag == 0x1)
+			{
+				printk("imx214_set_otp_module_id imx214 ofilm module \n");
+				g_imx214_otp_module_id = mid;
+				break;
+			}
+		}
+		else if(mid == 0x2) //imx214 truly
+		{
+			wb_flag = buffer[63+PageCount*pageIndex];
+			CDBG("%s truly wb_flag=%x\n", __func__,wb_flag);
+			if(wb_flag==0x00)
+			{
+				printk("imx214_set_otp_module_id imx214 truly module \n");
+				g_imx214_otp_module_id = mid;
+#if 0 // deside by data for now by gpg		
+				g_otp_driver_ic_id = buffer[8+PageCount*pageIndex];
+#else
+				if(	((buffer[2+PageCount*pageIndex] == 15) && (buffer[3+PageCount*pageIndex] >= 0x09))
+					|| (buffer[2+PageCount*pageIndex] > 15) ) // after 201509
+					g_otp_driver_ic_id = 0x01;  // for 846
+				else
+					g_otp_driver_ic_id = 0x02;  // cm9886
+#endif
+				printk("imx214_truly module driver id 0x%02x\n", g_otp_driver_ic_id);	
+				break;
+			}
+		}
+		else if(mid == 0x1) //imx214 sunny
+		{
+			wb_flag = buffer[PageCount*pageIndex];
+			CDBG("%s sunny wb_flag=%x\n", __func__,wb_flag);
+			if(wb_flag==0x01)
+			{
+				printk("imx214_set_otp_module_id imx214 sunny module \n");
+				g_imx214_otp_module_id = mid;
+				break;
+			}
+		}
+		else
+		{
+			printk("imx214_set_otp_module_id unknown imx214 module \n");
+			if(0x01 == buffer[6+PageCount*pageIndex]) //This two line is for sunny error otp module f13n05k, should be deleted after new module come. liyatang
+				g_imx214_otp_module_id = buffer[6+PageCount*pageIndex];
+		}
+	}
+	return pageIndex;
+
+}
+
+
+static int ov5670_get_group_index(uint8_t mid)
+{
+  int8_t group_index = -1 ;
+  mid = mid & 0xFC ;
+  if((mid&0xC0) == 0x40){
+    group_index = 0 ;
+  }else if((mid&0x30) == 0x10){
+    group_index = 1 ;
+  }else if((mid&0x0C) == 0x04){
+    group_index = 2 ;
+  }else{
+    group_index = -1 ;
+  }
+  return group_index ;
+}
+
+
+static int ov5670_set_otp_module_id(struct msm_eeprom_ctrl_t *e_ctrl)
+{
+  uint8_t mid;
+  int  group_index,addr_offset = 0,group_offset=5;
+
+  mid = (uint8_t)( e_ctrl->cal_data.mapdata[0]);
+  if((group_index=ov5670_get_group_index(mid))==-1){
+    printk("ov5670_set_otp_module_id invalid group index \n");
+    return -1 ;
+  }
+
+  CDBG("%s group_index=%d\n", __func__,group_index);
+  addr_offset = group_offset*group_index ;
+
+  g_ov5670_otp_module_id =(uint8_t)( e_ctrl->cal_data.mapdata[addr_offset + 1]);
+  
+
+   CDBG("%s g_ov5670_otp_module_id=%d\n", __func__,g_ov5670_otp_module_id);
+
+  return 0;
+}
+
+
+static int s5k3l2_set_otp_module_id(struct msm_eeprom_ctrl_t *e_ctrl)
+{
+
+   g_s5k3l2_otp_module_id = (uint8_t)( e_ctrl->cal_data.mapdata[0]);
+
+   CDBG("%s s5k3l2_set_otp_module_id=%x\n", __func__,g_s5k3l2_otp_module_id);
+
+  return 0;
+}
+
+static int s5k5e2_set_otp_module_id(struct msm_eeprom_ctrl_t *e_ctrl)
+{
+   char i;
+   //for trully module
+   for(i=0;i<3;i++)
+      if((e_ctrl->cal_data.mapdata[i*64+62]) == 0)
+         g_s5k5e2_otp_module_id = (uint8_t)(e_ctrl->cal_data.mapdata[i*64]);
+   if (g_s5k5e2_otp_module_id == 0x02)
+	   return 0;
+   //for ofilm module
+   for(i=0;i<4;i++)
+	   if((e_ctrl->cal_data.mapdata[i*32+31]) == 0x01)
+		   g_s5k5e2_otp_module_id = (uint8_t)(e_ctrl->cal_data.mapdata[i*32]);
+   if (g_s5k5e2_otp_module_id == 0x07)
+	   return 0;
+   CDBG("%s s5k5e2_set_otp_module_id=%x\n", __func__,g_s5k5e2_otp_module_id);
+
+   return 0;
+}
 
 static int msm_eeprom_platform_probe(struct platform_device *pdev)
 {
@@ -1135,7 +1418,18 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 		pr_err("failed rc %d\n", rc);
 		goto memdata_free;
 	}
+	if(strcmp(eb_info->eeprom_name,"sunny_q5v41b")==0)
+	{
+		rc = ov5670_read_eeprom_memory(e_ctrl, &e_ctrl->cal_data);
+	}
+	else if(strcmp(eb_info->eeprom_name,"hynix_hi545")==0)
+	{
+		rc = custom_hynix_define_otp_read(e_ctrl, &e_ctrl->cal_data);				
+	}
+	else
+	{
 	rc = read_eeprom_memory(e_ctrl, &e_ctrl->cal_data);
+	}
 	if (rc < 0) {
 		pr_err("%s read_eeprom_memory failed\n", __func__);
 		goto power_down;
@@ -1143,6 +1437,38 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 	for (j = 0; j < e_ctrl->cal_data.num_data; j++)
 		CDBG("memory_data[%d] = 0x%X\n", j,
 			e_ctrl->cal_data.mapdata[j]);
+	if( (eb_info->eeprom_name != NULL) 
+		&& (   (strcmp(eb_info->eeprom_name, "truly_cmA016qr") == 0)
+			|| (strcmp(eb_info->eeprom_name, "imx214_olqba15") == 0)
+			|| (strcmp(eb_info->eeprom_name, "imx214_f13n05e") == 0) 
+			|| (strcmp(eb_info->eeprom_name, "imx214_olqba22") == 0)
+			|| (strcmp(eb_info->eeprom_name, "imx214_f13n05k") == 0)
+			|| (strcmp(eb_info->eeprom_name, "truly_cm9886qr") == 0)
+			|| (strcmp(eb_info->eeprom_name, "imx214_cma846") == 0)
+		) )
+	{
+		CDBG("imx214 name = %s\n",eb_info->eeprom_name);
+		imx214_set_otp_module_id(e_ctrl);
+	}
+	else if((eb_info->eeprom_name != NULL) && (strcmp(eb_info->eeprom_name,"sunny_q5v41b") == 0))
+	{
+		ov5670_set_otp_module_id(e_ctrl);
+	}
+	else if((eb_info->eeprom_name != NULL) && (strcmp(eb_info->eeprom_name,"ofilm_olqba11") == 0))
+	{
+		s5k3l2_set_otp_module_id(e_ctrl);
+	}
+	else if( (eb_info->eeprom_name != NULL) 
+			&& (   (strcmp(eb_info->eeprom_name,"s5k5e2_olq5f20") == 0)
+				|| (strcmp(eb_info->eeprom_name,"s5k5e2_cma189") == 0) 
+				|| (strcmp(eb_info->eeprom_name,"s5k5e2_s7b5") == 0) ) )
+	{
+		s5k5e2_set_otp_module_id(e_ctrl);
+	}
+	else
+	{
+		CDBG("there is no need special process\n");
+	}
 
 	e_ctrl->is_supported |= msm_eeprom_match_crc(&e_ctrl->cal_data);
 

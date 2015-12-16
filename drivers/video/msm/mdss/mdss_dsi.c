@@ -23,6 +23,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/leds-qpnp-wled.h>
 #include <linux/clk.h>
+#include <linux/pm_qos.h>
 
 #include "mdss.h"
 #include "mdss_panel.h"
@@ -30,6 +31,28 @@
 #include "mdss_debug.h"
 
 #define XO_CLK_RATE	19200000
+#define DSI_DISABLE_PC_LATENCY 100
+#define DSI_ENABLE_PC_LATENCY PM_QOS_DEFAULT_VALUE
+static struct pm_qos_request mdss_dsi_pm_qos_request;
+
+static void mdss_dsi_pm_qos_add_request(void)
+{
+	pr_debug("%s: add request",__func__);
+	pm_qos_add_request(&mdss_dsi_pm_qos_request, PM_QOS_CPU_DMA_LATENCY,
+		PM_QOS_DEFAULT_VALUE);
+}
+
+static void mdss_dsi_pm_qos_remove_request(void)
+{
+	pr_debug("%s: remove request",__func__);
+	pm_qos_remove_request(&mdss_dsi_pm_qos_request);
+}
+
+static void mdss_dsi_pm_qos_update_request(int val)
+{
+	pr_debug("%s: update request %d",__func__,val);
+	pm_qos_update_request(&mdss_dsi_pm_qos_request, val);
+}
 
 static int mdss_dsi_pinctrl_set_state(struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 					bool active);
@@ -544,6 +567,9 @@ static int mdss_dsi_update_panel_config(struct mdss_dsi_ctrl_pdata *ctrl_pdata,
 int mdss_dsi_on(struct mdss_panel_data *pdata)
 {
 	int ret = 0;
+	#ifdef CONFIG_L8720_COMMON
+	u32 tmp;
+	#endif
 	struct mdss_panel_info *pinfo;
 	struct mipi_panel_info *mipi;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
@@ -616,7 +642,12 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 
 	if (mipi->init_delay)
 		usleep(mipi->init_delay);
-
+#ifdef CONFIG_L8720_COMMON
+    tmp = MIPI_INP((ctrl_pdata->ctrl_base) + 0xac);
+    tmp |= (1<<28);
+    MIPI_OUTP((ctrl_pdata->ctrl_base) + 0xac, tmp);
+    wmb();
+#else
 	if (mipi->force_clk_lane_hs) {
 		u32 tmp;
 
@@ -625,7 +656,7 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 		MIPI_OUTP((ctrl_pdata->ctrl_base) + 0xac, tmp);
 		wmb();
 	}
-
+#endif
 	if (pdata->panel_info.type == MIPI_CMD_PANEL)
 		mdss_dsi_clk_ctrl(ctrl_pdata, DSI_ALL_CLKS, 0);
 
@@ -705,6 +736,8 @@ static int mdss_dsi_unblank(struct mdss_panel_data *pdata)
 	pr_debug("%s+: ctrl=%p ndx=%d cur_blank_state=%d\n", __func__,
 		ctrl_pdata, ctrl_pdata->ndx, pdata->panel_info.blank_state);
 
+	mdss_dsi_pm_qos_update_request(DSI_DISABLE_PC_LATENCY);
+
 	mdss_dsi_clk_ctrl(ctrl_pdata, DSI_ALL_CLKS, 1);
 
 	if (pdata->panel_info.blank_state == MDSS_PANEL_BLANK_LOW_POWER) {
@@ -735,6 +768,7 @@ static int mdss_dsi_unblank(struct mdss_panel_data *pdata)
 
 error:
 	mdss_dsi_clk_ctrl(ctrl_pdata, DSI_ALL_CLKS, 0);
+	mdss_dsi_pm_qos_update_request(DSI_ENABLE_PC_LATENCY);
 	pr_debug("%s-:\n", __func__);
 
 	return ret;
@@ -1522,6 +1556,10 @@ static int mdss_dsi_ctrl_probe(struct platform_device *pdev)
 		goto error_pan_node;
 	}
 
+	ctrl_pdata->cmd_clk_ln_recovery_en =
+		of_property_read_bool(pdev->dev.of_node,
+			"qcom,dsi-clk-ln-recovery");
+
 	if (mdss_dsi_is_te_based_esd(ctrl_pdata)) {
 		rc = devm_request_irq(&pdev->dev,
 			gpio_to_irq(ctrl_pdata->disp_te_gpio),
@@ -1533,6 +1571,7 @@ static int mdss_dsi_ctrl_probe(struct platform_device *pdev)
 		}
 		disable_irq(gpio_to_irq(ctrl_pdata->disp_te_gpio));
 	}
+	mdss_dsi_pm_qos_add_request();
 	pr_debug("%s: Dsi Ctrl->%d initialized\n", __func__, index);
 	return 0;
 
@@ -1560,6 +1599,8 @@ static int mdss_dsi_ctrl_remove(struct platform_device *pdev)
 		pr_err("%s: no driver data\n", __func__);
 		return -ENODEV;
 	}
+
+	mdss_dsi_pm_qos_remove_request();
 
 	for (i = DSI_MAX_PM - 1; i >= 0; i--) {
 		if (msm_dss_config_vreg(&pdev->dev,

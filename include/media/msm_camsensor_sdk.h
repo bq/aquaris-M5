@@ -5,7 +5,7 @@
 
 #define KVERSION 0x1
 
-#define MAX_POWER_CONFIG      12
+#define MAX_POWER_CONFIG      14
 #define GPIO_OUT_LOW          (0 << 1)
 #define GPIO_OUT_HIGH         (1 << 1)
 #define CSI_EMBED_DATA        0x12
@@ -152,6 +152,14 @@ enum msm_actuator_addr_type {
 enum msm_actuator_write_type {
 	MSM_ACTUATOR_WRITE_HW_DAMP,
 	MSM_ACTUATOR_WRITE_DAC,
+	MSM_ACTUATOR_WRITE_DAC_DW9800,
+	MSM_ACTUATOR_WRITE_DAC_DW9761,
+	// add for AK7345
+	MSM_ACTUATOR_WRITE_DAC_AK7345,
+	// end for AK7345
+	MSM_ACTUATOR_WRITE_DAC_OLQBA22,
+	// add for dw9800w
+	MSM_ACTUATOR_WRITE_DAC_DW9800W,	
 };
 
 enum msm_actuator_i2c_operation {

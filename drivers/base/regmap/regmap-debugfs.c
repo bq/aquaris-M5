@@ -248,7 +248,11 @@ static ssize_t regmap_map_read_file(struct file *file, char __user *user_buf,
 				   count, ppos);
 }
 
+#if defined(CONFIG_AUDIO_CODEC_WM8998)	 || defined(CONFIG_AUDIO_CODEC_FLORIDA)// xuke @ 20150114	Enable debug.
+#define REGMAP_ALLOW_WRITE_DEBUGFS
+#else
 #undef REGMAP_ALLOW_WRITE_DEBUGFS
+#endif
 #ifdef REGMAP_ALLOW_WRITE_DEBUGFS
 /*
  * This can be dangerous especially when we have clients such as

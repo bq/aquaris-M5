@@ -23,6 +23,8 @@
 
 #include <trace/events/ext4.h>
 
+#define DATA_PARTITION_PROTECT_ENABLE 1
+
 static unsigned ext4_num_base_meta_clusters(struct super_block *sb,
 					    ext4_group_t block_group);
 /*
@@ -486,6 +488,67 @@ ext4_read_block_bitmap(struct super_block *sb, ext4_group_t block_group)
 	}
 	return bh;
 }
+#if DATA_PARTITION_PROTECT_ENABLE
+static int get_pid_cmdline(struct task_struct *task, char * buffer)
+{	
+	int res = 0;	
+	unsigned int len;	
+	struct mm_struct *mm = get_task_mm(task);	
+	if (!mm)		
+		goto out;	
+	if (!mm->arg_end)		
+		goto out_mm;	/* Shh! No looking before we're done */ 	
+	len = mm->arg_end - mm->arg_start; 	
+	if (len > PAGE_SIZE)		
+		len = PAGE_SIZE; 	
+	res = access_process_vm(task, mm->arg_start, buffer, len, 0);	
+	// If the nul at the end of args has been overwritten, then	
+	// assume application is using setproctitle(3).	
+	if (res > 0 && buffer[res-1] != '\0' && len < PAGE_SIZE) {		
+		len = strnlen(buffer, res);		
+		if (len < res) {		    
+			res = len;		
+		} else {			
+			len = mm->env_end - mm->env_start;			
+			if (len > PAGE_SIZE - res)				
+				len = PAGE_SIZE - res;			
+			res += access_process_vm(task, mm->env_start, buffer+res, len, 0);			
+			res = strnlen(buffer, res);		
+		}	
+	}
+out_mm:	
+	mmput(mm);
+out:	
+	return res;
+}
+
+char buf[512];
+static int has_free_blocks(s64 free_blocks, s64 dirty_blocks)
+{
+	int ret;
+
+	if((free_blocks - dirty_blocks) < 7680) {
+		ret = get_pid_cmdline(current, buf);
+		if(ret > 0)
+			buf[ret] = 0;
+		else
+			return 1;
+		if(current->cred->uid  <= 10000 && strcmp(buf, "/system/bin/sdcard"))
+			return 1;
+		//pr_err("free_blocks: %s\n", buf);
+		if(strcmp(buf, "com.android.phone") && strcmp(buf, "com.android.systemui")				
+			&& strcmp(buf, "android.process.acore") && strcmp(buf, "com.android.mms")				
+			&& strcmp(buf, "android.process.media") && strcmp(buf, "com.android.settings")			
+            && strcmp(buf, "/system/bin/dexopt")
+			&& strcmp(buf, "com.android.launcher")) {				
+			pr_info("has no free blocks\n");
+			return 0;			
+		}
+	}
+	return 1;
+}
+#endif
+
 
 /**
  * ext4_has_free_clusters()
@@ -519,6 +582,11 @@ static int ext4_has_free_clusters(struct ext4_sb_info *sbi,
 		free_clusters  = percpu_counter_sum_positive(fcc);
 		dirty_clusters = percpu_counter_sum_positive(dcc);
 	}
+	#if DATA_PARTITION_PROTECT_ENABLE
+	//pr_err("ext4_has_free_blocks: %lld, %lld, %u\n", free_clusters, dirty_clusters, sbi->s_groups_count);
+	if(sbi->s_groups_count >= 5 && has_free_blocks(free_clusters, dirty_clusters) == 0)
+		return 0;
+	#endif
 	/* Check whether we have space after accounting for current
 	 * dirty clusters & root reserved clusters.
 	 */

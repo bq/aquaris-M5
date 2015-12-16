@@ -29,7 +29,11 @@
  */
 
 #define SPI_CPHA		0x01
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+#define SPI_CPOL		0x00
+#else
 #define SPI_CPOL		0x02
+#endif
 
 #define SPI_MODE_0		(0|0)
 #define SPI_MODE_1		(0|SPI_CPHA)

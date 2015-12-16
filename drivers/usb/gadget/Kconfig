@@ -884,6 +884,12 @@ config USB_G_ANDROID
 	  Each function can be configured and enabled/disabled
 	  dynamically from userspace through a sysfs interface.
 
+config ONLY_BICR_SUPPORT
+       tristate "Mass Storage Gadget ONLY CDROM"
+       depends on USB_G_ANDROID
+       help
+         The Mass Storage Gadget acts as a USB Mass Storage CDROM drive.
+
 config USB_ANDROID_RNDIS_DWORD_ALIGNED
 	boolean "Use double word aligned"
 	depends on USB_G_ANDROID

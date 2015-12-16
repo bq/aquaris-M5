@@ -210,6 +210,7 @@ static irqreturn_t wcd9xxx_spmi_irq_handler(int linux_irq, void *data)
 	int irq, i, j;
 	unsigned long status[NUM_IRQ_REGS] = {0};
 
+	printk("%s\n", __func__);
 	if (unlikely(wcd9xxx_spmi_lock_sleep() == false)) {
 		pr_err("Failed to hold suspend\n");
 		return IRQ_NONE;
@@ -251,7 +252,7 @@ enum wcd9xxx_spmi_pm_state wcd9xxx_spmi_pm_cmpxchg(
 	old = map.pm_state;
 	if (old == o)
 		map.pm_state = n;
-	pr_debug("%s: map.pm_state = %d\n", __func__, map.pm_state);
+	pr_info("%s: map.pm_state = %d\n", __func__, map.pm_state);
 	mutex_unlock(&map.pm_lock);
 	return old;
 }
@@ -261,14 +262,14 @@ int wcd9xxx_spmi_suspend(pm_message_t pmesg)
 {
 	int ret = 0;
 
-	pr_debug("%s: enter\n", __func__);
+	pr_info("%s: enter\n", __func__);
 	/*
 	 * pm_qos_update_request() can be called after this suspend chain call
 	 * started. thus suspend can be called while lock is being held
 	 */
 	mutex_lock(&map.pm_lock);
 	if (map.pm_state == WCD9XXX_PM_SLEEPABLE) {
-		pr_debug("%s: suspending system, state %d, wlock %d\n",
+		pr_info("%s: suspending system, state %d, wlock %d\n",
 			 __func__, map.pm_state,
 			 map.wlock_holders);
 		map.pm_state = WCD9XXX_PM_ASLEEP;
@@ -277,7 +278,7 @@ int wcd9xxx_spmi_suspend(pm_message_t pmesg)
 		 * unlock to wait for pm_state == WCD9XXX_PM_SLEEPABLE
 		 * then set to WCD9XXX_PM_ASLEEP
 		 */
-		pr_debug("%s: waiting to suspend system, state %d, wlock %d\n",
+		pr_info("%s: waiting to suspend system, state %d, wlock %d\n",
 			 __func__, map.pm_state,
 			 map.wlock_holders);
 		mutex_unlock(&map.pm_lock);
@@ -287,18 +288,18 @@ int wcd9xxx_spmi_suspend(pm_message_t pmesg)
 							WCD9XXX_PM_ASLEEP) ==
 							WCD9XXX_PM_SLEEPABLE,
 							HZ))) {
-			pr_debug("%s: suspend failed state %d, wlock %d\n",
+			pr_info("%s: suspend failed state %d, wlock %d\n",
 				 __func__, map.pm_state,
 				 map.wlock_holders);
 			ret = -EBUSY;
 		} else {
-			pr_debug("%s: done, state %d, wlock %d\n", __func__,
+			pr_info("%s: done, state %d, wlock %d\n", __func__,
 				 map.pm_state,
 				 map.wlock_holders);
 		}
 		mutex_lock(&map.pm_lock);
 	} else if (map.pm_state == WCD9XXX_PM_ASLEEP) {
-		pr_warn("%s: system is already suspended, state %d, wlock %dn",
+		pr_info("%s: system is already suspended, state %d, wlock %dn",
 			__func__, map.pm_state,
 			map.wlock_holders);
 	}
@@ -312,15 +313,15 @@ int wcd9xxx_spmi_resume()
 {
 	int ret = 0;
 
-	pr_debug("%s: enter\n", __func__);
+	pr_info("%s: enter\n", __func__);
 	mutex_lock(&map.pm_lock);
 	if (map.pm_state == WCD9XXX_PM_ASLEEP) {
-		pr_debug("%s: resuming system, state %d, wlock %d\n", __func__,
+		pr_info("%s: resuming system, state %d, wlock %d\n", __func__,
 				map.pm_state,
 				map.wlock_holders);
 		map.pm_state = WCD9XXX_PM_SLEEPABLE;
 	} else {
-		pr_warn("%s: system is already awake, state %d wlock %d\n",
+		pr_info("%s: system is already awake, state %d wlock %d\n",
 				__func__, map.pm_state,
 				map.wlock_holders);
 	}
@@ -341,17 +342,18 @@ bool wcd9xxx_spmi_lock_sleep()
 	 * It can race with wcd9xxx_spmi_irq_thread.
 	 * So need to embrace wlock_holders with mutex.
 	 */
+	pr_info("%s, wlock_holders=%d\n", __func__, map.wlock_holders);
 	mutex_lock(&map.pm_lock);
 	if (map.wlock_holders++ == 0) {
-		pr_debug("%s: holding wake lock\n", __func__);
+		pr_info("%s: holding wake lock\n", __func__);
 		pm_qos_update_request(&map.pm_qos_req,
 				      msm_cpuidle_get_deep_idle_latency());
 		pm_stay_awake(&map.spmi[0]->dev);
 	}
 	mutex_unlock(&map.pm_lock);
-	pr_debug("%s: wake lock counter %d\n", __func__,
+	pr_info("%s: wake lock counter %d\n", __func__,
 			map.wlock_holders);
-	pr_debug("%s: map.pm_state = %d\n", __func__, map.pm_state);
+	pr_info("%s: map.pm_state = %d\n", __func__, map.pm_state);
 
 	if (!wait_event_timeout(map.pm_wq,
 				((wcd9xxx_spmi_pm_cmpxchg(
@@ -379,6 +381,7 @@ EXPORT_SYMBOL(wcd9xxx_spmi_lock_sleep);
 
 void wcd9xxx_spmi_unlock_sleep()
 {
+	pr_info("%s, wlock_holders=%d\n", __func__, map.wlock_holders);
 	mutex_lock(&map.pm_lock);
 	if (--map.wlock_holders == 0) {
 		pr_debug("%s: releasing wake lock pm_state %d -> %d\n",

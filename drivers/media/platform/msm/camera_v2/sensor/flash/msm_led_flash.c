@@ -120,6 +120,13 @@ int32_t msm_led_i2c_flash_create_v4lsubdev(void *data)
 	fctrl->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_LED_FLASH;
 	msm_sd_register(&fctrl->msm_sd);
 
+	msm_led_flash_v4l2_subdev_fops = v4l2_subdev_fops;
+#ifdef CONFIG_COMPAT
+	msm_led_flash_v4l2_subdev_fops.compat_ioctl32 =
+		msm_led_flash_v4l2_subdev_fops.unlocked_ioctl;
+#endif
+	fctrl->msm_sd.sd.devnode->fops = &msm_led_flash_v4l2_subdev_fops;
+
 	CDBG("probe success\n");
 	return 0;
 }

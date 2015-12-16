@@ -104,7 +104,13 @@ enum msm_usb_phy_type {
 	SNPS_FEMTO_PHY,
 };
 
+#if defined(CONFIG_L8150_COMMON)
+#define IDEV_CHG_MAX	950
+#elif defined(CONFIG_L8720_CTI_A01)
+#define IDEV_CHG_MAX	1000
+#else
 #define IDEV_CHG_MAX	1500
+#endif
 #define IDEV_CHG_MIN	500
 #define IUNIT		100
 
@@ -298,6 +304,7 @@ struct msm_otg_platform_data {
 	bool enable_ahb2ahb_bypass;
 	bool disable_retention_with_vdd_min;
 	int usb_id_gpio;
+	int usbid_switch;
 	bool phy_dvdd_always_on;
 	struct clk *system_clk;
 };
@@ -460,6 +467,7 @@ struct msm_otg {
 	enum usb_chg_type chg_type;
 	unsigned dcd_time;
 	struct wake_lock wlock;
+	struct wake_lock plug_wake_lock;
 	struct notifier_block usbdev_nb;
 	unsigned mA_port;
 	struct timer_list id_timer;

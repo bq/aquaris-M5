@@ -242,6 +242,118 @@ config ARCH_XGENE
 	help
 	  This enables support for AppliedMicro X-Gene SOC Family
 
+config AUDIO_CODEC_WM8998
+	default n
+	bool "LCT defined gpio for WM8998"
+	select MFD_ARIZONA
+	select MFD_ARIZONA_I2C
+	select MFD_WM8998
+	select SND_SOC_ARIZONA
+	select SWITCH_ARIZONA
+	select REGULATOR_ARIZONA
+	select GPIO_ARIZONA
+	help
+		Support for Wolfson codec WM8998.
+
+config LCT_WM8998_GPIO_CTRL
+	default n
+	bool "LCT defined gpio for WM8998"
+	depends on AUDIO_CODEC_WM8998
+	help
+		Support for Wolfson codec WM8998.
+
+config AUDIO_CODEC_WM8998_SWITCH
+	default n
+	bool "Switch macro for WM8998 in L9100"
+	help
+		Support for Wolfson codec WM8998, and this is a switch macro.		
+
+config AUDIO_CODEC_FLORIDA
+	default n
+	bool "LCT defined gpio for FLORIDA"
+	select MFD_ARIZONA
+	select MFD_ARIZONA_SPI
+	select MFD_FLORIDA
+	select SND_SOC_ARIZONA
+	select SWITCH_ARIZONA
+	select REGULATOR_ARIZONA
+	select GPIO_ARIZONA
+	help
+		Support for Wolfson codec FLORIDA.
+		
+config LCT_FLORIDA_GPIO_CTRL
+	default n
+	bool "LCT defined gpio for FLORIDA"
+	depends on AUDIO_CODEC_FLORIDA
+	help
+		Support for Wolfson codec FLORIDA.
+
+config L8150_COMMON
+    default n
+    bool "Longcheer L8150 board"
+    help
+        Support for the L8150 longcheer board.
+
+config L8700_COMMON
+    default n
+    bool "Longcheer L8700 board"
+    help
+        Support for the L8700 longcheer board.
+
+config L8720_LCT_A01
+    default n
+    bool "Longcheer L8720 board"
+    help
+        Support for the L8720 longcheer board.
+		
+config L9100_COMMON
+    default n
+    bool "Longcheer L8700 board"
+    help
+        Support for the L8700 longcheer board.
+
+config L8150_LCT_A01
+    default n
+    bool "Longcheer L8700 board"
+    help
+        Support for the L8700 longcheer board.  
+	  
+config L9100_MRS_A01
+    default n
+    bool "Longcheer L8720 board"
+    help
+        Support for the L8720 longcheer board.
+		
+config L8720_COMMON
+    default n
+    bool "Longcheer L8720 board"
+    help
+        Support for the L8720 longcheer board.
+		
+config L8720_CTM_A01
+    default n
+    bool "Longcheer L8720 board"
+    help
+        Support for the L8720 longcheer board.
+
+config L8720_MCX_A01
+    default n
+    bool "Micromax L8720 board"
+    help
+        Support for the L8720 longcheer board.
+		
+config L8155_MCX_A01
+    default n
+    bool "Micromax L8720 board"
+    help
+        Support for the L8720 longcheer board.
+
+config L8720_SIM_A01
+    default n
+    bool "Longcheer L8720 board"
+    help
+        Support for the L8720 longcheer board.
+
 endmenu
 
 menu "Bus support"

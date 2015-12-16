@@ -54,7 +54,11 @@ void *removed_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 			dma_release_from_contiguous(dev, pfn, order);
 		} else {
 			if (!skip_zeroing)
+#if defined(CONFIG_ARM)
 				memset(addr, 0, size);
+#else
+				memset_io(addr, 0, size);
+#endif
 			if (no_kernel_mapping) {
 				iounmap(addr);
 				addr = (void *)NO_KERNEL_MAPPING_DUMMY;

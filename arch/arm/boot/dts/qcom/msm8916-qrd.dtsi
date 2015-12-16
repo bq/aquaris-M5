@@ -66,6 +66,14 @@
 		pinctrl-0 = <&gpio_key_active>;
 		pinctrl-1 = <&gpio_key_suspend>;
 
+		vol_down {
+			label = "volume_down";
+			gpios = <&msm_gpio 108 0x1>;
+			linux,input-type = <1>;
+			linux,code = <114>;
+			gpio-key,wakeup;
+			debounce-interval = <15>;
+		};
 		vol_up {
 			label = "volume_up";
 			gpios = <&msm_gpio 107 0x1>;
@@ -124,9 +132,9 @@
 };
 
 &sdhc_2 {
-	vdd-supply = <&pm8916_l11>;
+	/*vdd-supply = <&pm8916_l11>;
 	qcom,vdd-voltage-level = <2800000 2950000>;
-	qcom,vdd-current-level = <15000 400000>;
+	qcom,vdd-current-level = <15000 400000>;*/
 
 	vdd-io-supply = <&pm8916_l12>;
 	qcom,vdd-io-voltage-level = <1800000 2950000>;

@@ -105,7 +105,6 @@
 					<0 1 2 4 7>,
 					<2 0 2 4 9>;
 		qcom,cpr-quot-adjust-scaling-factor-max = <650>;
-		qcom,cpr-enable;
 	};
 };
 

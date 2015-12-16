@@ -22,6 +22,12 @@
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
 
 static struct v4l2_file_operations msm_sensor_v4l2_subdev_fops;
+extern uint8_t g_imx214_otp_module_id;
+extern uint8_t g_ov5670_otp_module_id ;
+extern uint8_t g_s5k3l2_otp_module_id;
+extern uint8_t g_s5k5e2_otp_module_id;
+extern uint8_t g_otp_driver_ic_id;
+
 static void msm_sensor_adjust_mclk(struct msm_camera_power_ctrl_t *ctrl)
 {
 	int idx;
@@ -1324,6 +1330,135 @@ int msm_sensor_check_id(struct msm_sensor_ctrl_t *s_ctrl)
 		rc = s_ctrl->func_tbl->sensor_match_id(s_ctrl);
 	else
 		rc = msm_sensor_match_id(s_ctrl);
+
+	if( (rc == 0) 
+		&& (s_ctrl->sensordata->sensor_name != NULL) 
+		&& (   (strcmp(s_ctrl->sensordata->sensor_name, "imx214_8916") == 0) 
+	// gpg now we do not support this module
+	//		|| (strcmp(s_ctrl->sensordata->sensor_name, "imx214_8916_truly") == 0) 
+			|| (strcmp(s_ctrl->sensordata->sensor_name, "imx214_olqba15") == 0) 
+			|| (strcmp(s_ctrl->sensordata->sensor_name, "imx214_f13n05e") == 0) 
+			|| (strcmp(s_ctrl->sensordata->sensor_name, "imx214_olqba22") == 0)
+			|| (strcmp(s_ctrl->sensordata->sensor_name, "imx214_f13n05k") == 0)
+			|| (strcmp(s_ctrl->sensordata->sensor_name, "imx214_8916_cm9886qr") == 0)
+			|| (strcmp(s_ctrl->sensordata->sensor_name, "imx214_cma846") == 0)
+			) )	
+	{
+		pr_err("%s:g_imx214_otp_module_id = %x\n", __func__,g_imx214_otp_module_id);
+		if((strcmp(s_ctrl->sensordata->sensor_name,"imx214_8916") == 0) && (g_imx214_otp_module_id == 0x7))
+		{
+			pr_err("%s:it is ofilm imx214\n", __func__);	
+		}
+// gpg now we do not support this module
+#if 0
+		else if((strcmp(s_ctrl->sensordata->sensor_name,"imx214_8916_truly") == 0) && (g_imx214_otp_module_id == 0x2))
+		{
+			pr_err("%s:it is truly imx214\n", __func__);	
+		}
+#endif
+		else if((strcmp(s_ctrl->sensordata->sensor_name,"imx214_8916_cm9886qr") == 0) 
+			&& (g_imx214_otp_module_id == 0x2)
+			&& (g_otp_driver_ic_id == 0x02) ) // ADI driver IC by gpg
+		{
+			pr_err("%s:it is imx214_8916_cm9886qr\n", __func__);	
+		}
+		else if((strcmp(s_ctrl->sensordata->sensor_name,"imx214_cma846") == 0) 
+			&& (g_imx214_otp_module_id == 0x2)
+			&& (g_otp_driver_ic_id == 0x01) ) // DW driver IC by gpg
+		{
+			pr_err("%s:it is imx214_cma846\n", __func__);	
+		}		
+		else if((strcmp(s_ctrl->sensordata->sensor_name,"imx214_olqba15") == 0) && (g_imx214_otp_module_id == 0x7))
+		{
+			pr_err("%s:it is ofilm imx214_olqba15\n", __func__);
+		}
+		else if((strcmp(s_ctrl->sensordata->sensor_name,"imx214_f13n05e") == 0) && (g_imx214_otp_module_id == 0x1))
+		{
+			pr_err("%s:it is sunny imx214_f13n05e\n", __func__);
+		}
+		else if((strcmp(s_ctrl->sensordata->sensor_name,"imx214_olqba22") == 0) && (g_imx214_otp_module_id == 0x7))
+		{
+			pr_err("%s:it is ofilm imx214\n", __func__);
+		}
+		else if((strcmp(s_ctrl->sensordata->sensor_name,"imx214_f13n05k") == 0) && (g_imx214_otp_module_id == 0x1))
+		{
+			pr_err("%s:it is sunny imx214_f13n05e\n", __func__);
+		}
+		else
+		{
+			pr_err("%s:it is not support imx214 s_ctrl->sensordata->sensor_name =%s\n", __func__,s_ctrl->sensordata->sensor_name);
+			rc = -ENODEV;
+		}
+	}
+	else if( (rc == 0) 
+			&& (s_ctrl->sensordata->sensor_name != NULL) 
+			&& (   (strcmp(s_ctrl->sensordata->sensor_name, "ov5670_q5v41b") == 0) 
+				|| (strcmp(s_ctrl->sensordata->sensor_name, "ov5670_avc") == 0) ) )
+	{
+		pr_err("%s:g_ov5670_otp_module_id = %x\n", __func__,g_ov5670_otp_module_id);
+		if((strcmp(s_ctrl->sensordata->sensor_name,"ov5670_q5v41b") == 0) && (g_ov5670_otp_module_id == 0x7))
+		{
+			pr_err("%s:it is ofilm ov5670\n", __func__);	
+		}
+		else if((strcmp(s_ctrl->sensordata->sensor_name,"ov5670_avc") == 0) && (g_ov5670_otp_module_id == 0x18))
+		{
+			pr_err("%s:it is avc ov5670\n", __func__);	
+		}
+		else
+		{
+			pr_err("%s:it is not support ov5670 s_ctrl->sensordata->sensor_name =%s\n", __func__,s_ctrl->sensordata->sensor_name);
+			rc = -ENODEV;
+		}
+	}
+	else if( (rc == 0) 
+			&& (s_ctrl->sensordata->sensor_name != NULL) 
+			&& (   (strcmp(s_ctrl->sensordata->sensor_name,"s5k3l2") == 0)
+				|| (strcmp(s_ctrl->sensordata->sensor_name,"s5k3l2_avc") == 0) ) )
+	{
+		pr_err("%s:g_s5k3l2_otp_module_id = %x\n", __func__,g_s5k3l2_otp_module_id);
+		if((strcmp(s_ctrl->sensordata->sensor_name,"s5k3l2") == 0) && (g_s5k3l2_otp_module_id == 0x7))
+		{
+			pr_err("%s:it is ofilm s5k3l2\n", __func__);	
+		}
+		else if((strcmp(s_ctrl->sensordata->sensor_name,"s5k3l2_avc") == 0) && (g_s5k3l2_otp_module_id == 0x18))
+		{
+			pr_err("%s:it is avc s5k3l2\n", __func__);	
+		}
+		else if((strcmp(s_ctrl->sensordata->sensor_name,"s5k3l2_primax") == 0) && (g_s5k3l2_otp_module_id == 0x1))
+		{
+			pr_err("%s:it is primax s5k3l2\n", __func__);	
+		}
+		else
+		{
+			pr_err("%s:it is not support s5k3l2 s_ctrl->sensordata->sensor_name =%s\n", __func__,s_ctrl->sensordata->sensor_name);
+			rc = -ENODEV;
+		}
+	}
+	else if( (rc == 0) 
+			&& (s_ctrl->sensordata->sensor_name != NULL) 
+			&& (   (strcmp(s_ctrl->sensordata->sensor_name,"s5k5e2_olq5f20") == 0)
+				|| (strcmp(s_ctrl->sensordata->sensor_name,"s5k5e2_cma189") == 0) 
+				|| (strcmp(s_ctrl->sensordata->sensor_name,"s5k5e2_s7b5") == 0) ) )
+	{
+		pr_err("%s:g_s5k5e2_otp_module_id = %x\n", __func__,g_s5k5e2_otp_module_id);
+		if((strcmp(s_ctrl->sensordata->sensor_name,"s5k5e2_olq5f20") == 0) && (g_s5k5e2_otp_module_id == 0x7))
+		{
+			pr_err("%s:it is ofilm s5k5e2_olq5f20\n", __func__);
+		}
+		else if((strcmp(s_ctrl->sensordata->sensor_name,"s5k5e2_cma189") == 0) && (g_s5k5e2_otp_module_id == 0x2))
+		{
+			pr_err("%s:it is trully s5k5e2_cma189\n", __func__);
+		}
+		else if((strcmp(s_ctrl->sensordata->sensor_name,"s5k5e2_s7b5") == 0) && (g_s5k5e2_otp_module_id == 0x8))
+		{
+			pr_err("%s:it is huaquan s5k5e2_s7b5\n", __func__);
+		}	
+		else
+		{
+			pr_err("%s:it is not support s5k5e2 s_ctrl->sensordata->sensor_name =%s\n", __func__,s_ctrl->sensordata->sensor_name);
+			rc = -ENODEV;
+		}
+	}
 	if (rc < 0)
 		pr_err("%s:%d match id failed rc %d\n", __func__, __LINE__, rc);
 	return rc;
@@ -1401,6 +1536,72 @@ static struct msm_camera_i2c_fn_t msm_sensor_qup_func_tbl = {
 	.i2c_write_conf_tbl = msm_camera_qup_i2c_write_conf_tbl,
 };
 
+/* add sensor info for *#87#
+   by wangqin 20130924
+   begin
+*/
+static struct kobject *msm_sensor_device=NULL;
+static char module_info[80] = {0};
+
+void msm_sensor_set_module_info(struct msm_sensor_ctrl_t *s_ctrl)
+{
+
+		printk(" s_ctrl->sensordata->camera_type = %d\n", s_ctrl->sensordata->sensor_info->position);
+
+		switch (s_ctrl->sensordata->sensor_info->position) {
+			case BACK_CAMERA_B:
+				strcat(module_info, "back: ");
+				break;
+			case FRONT_CAMERA_B:
+				strcat(module_info, "front: ");
+				break;
+			default:
+				strcat(module_info, "unknown: ");
+				break;
+			}
+		strcat(module_info, s_ctrl->sensordata->sensor_name);
+		strcat(module_info, "\n");
+}
+
+static ssize_t msm_sensor_module_id_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	ssize_t rc = 0;
+
+	sprintf(buf, "%s\n", module_info);
+	rc = strlen(buf) + 1;
+
+	return rc;
+}
+
+static DEVICE_ATTR(sensor, 0444, msm_sensor_module_id_show, NULL);
+
+int32_t msm_sensor_init_device_name(void)
+{
+	int32_t rc = 0;
+	pr_err("%s %d\n", __func__,__LINE__);
+	if(msm_sensor_device != NULL){
+		pr_err("Macle android_camera already created\n");
+		return 0;
+	}
+	msm_sensor_device = kobject_create_and_add("android_camera", NULL);
+	if (msm_sensor_device == NULL) {
+		printk("%s: subsystem_register failed\n", __func__);
+		rc = -ENOMEM;
+		return rc ;
+	}
+	rc = sysfs_create_file(msm_sensor_device, &dev_attr_sensor.attr);
+	if (rc) {
+		printk("%s: sysfs_create_file failed\n", __func__);
+		kobject_del(msm_sensor_device);
+	}
+
+	return 0 ;
+}
+/* add sensor info for *#87#
+   by wangqin 20130924
+   end
+*/
 int32_t msm_sensor_platform_probe(struct platform_device *pdev,
 				  const void *data)
 {
@@ -1497,7 +1698,8 @@ int32_t msm_sensor_platform_probe(struct platform_device *pdev,
 		&msm_sensor_v4l2_subdev_fops;
 
 	CDBG("%s:%d\n", __func__, __LINE__);
-
+	msm_sensor_init_device_name();
+	msm_sensor_set_module_info(s_ctrl);
 	s_ctrl->func_tbl->sensor_power_down(s_ctrl);
 	CDBG("%s:%d\n", __func__, __LINE__);
 	return rc;

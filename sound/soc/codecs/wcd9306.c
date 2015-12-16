@@ -6212,7 +6212,6 @@ static int tapan_post_reset_cb(struct wcd9xxx *wcd9xxx)
 				WCD9XXX_COND_HPH_MIC,
 				TAPAN_A_MICB_2_CTL, 7,
 				false);
-
 	wcd9xxx_mbhc_deinit(&tapan->mbhc);
 
 	if (TAPAN_IS_1_0(wcd9xxx->version))

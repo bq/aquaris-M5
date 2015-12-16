@@ -1397,6 +1397,66 @@ config PERFMAP
         help
           Perfmap: memory mapped interface for performance monitors.
 
+config AUDIO_CODEC_WM8998
+	default n
+	bool "LCT defined gpio for WM8998"
+	select MFD_ARIZONA
+	select MFD_ARIZONA_I2C
+	select MFD_WM8998
+	select SND_SOC_ARIZONA
+	select SWITCH_ARIZONA
+	select REGULATOR_ARIZONA
+	select GPIO_ARIZONA
+	help
+		Support for Wolfson codec WM8998.
+
+config LCT_WM8998_GPIO_CTRL
+	default n
+	bool "LCT defined gpio for WM8998"
+	depends on AUDIO_CODEC_WM8998
+	help
+		Support for Wolfson codec WM8998.
+
+config AUDIO_CODEC_WM8998_SWITCH
+	default n
+	bool "Switch macro for WM8998 in L9100"
+	help
+		Support for Wolfson codec WM8998, and this is a switch macro.		
+
+config AUDIO_CODEC_FLORIDA
+	default n
+	bool "LCT defined gpio for FLORIDA"
+	select MFD_ARIZONA
+	select MFD_ARIZONA_SPI
+	select MFD_FLORIDA
+	select SND_SOC_ARIZONA
+	select SWITCH_ARIZONA
+	select REGULATOR_ARIZONA
+	select GPIO_ARIZONA
+	help
+		Support for Wolfson codec FLORIDA.
+		
+config LCT_FLORIDA_GPIO_CTRL
+	default n
+	bool "LCT defined gpio for FLORIDA"
+	depends on AUDIO_CODEC_FLORIDA
+	help
+		Support for Wolfson codec FLORIDA.
+
+
+
+config L9100_COMMON
+    default n
+    bool "Longcheer L8700 board"
+    help
+        Support for the L9100 longcheer board.
+	  
+config L9100_MRS_A01
+    default n
+    bool "Longcheer L8720 board"
+    help
+        Support for the L9100 longcheer board.
+		
 endmenu
 
 source "arch/arm/common/Kconfig"
@@ -1508,6 +1568,30 @@ config SMP_ON_UP
 	  savings.
 
 	  If you don't know what to do here, say Y.
+
+config L8910_MRS_A01
+    default n
+    bool "Longcheer L8910 board"
+    help
+        Support for the L8910 longcheer board.
+
+config L8910_COMMON
+    default n
+    bool "Longcheer L8910 board"
+    help
+        Support for the L8910 longcheer board.
+
+config SPEAKER_EXT_PA
+    default n
+    bool "Speaker external PA"
+    help
+        Support for external PA.
+
+config SPEAKER_EXT_PA_AW8738
+    default n
+    bool "Speaker external PA AW8738"
+    help
+        Support for the AW8738.
 
 config ARM_CPU_TOPOLOGY
 	bool "Support cpu topology definition"

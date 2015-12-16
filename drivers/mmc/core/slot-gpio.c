@@ -47,6 +47,8 @@ static irqreturn_t mmc_gpio_cd_irqt(int irq, void *dev_id)
 	struct mmc_gpio *ctx = host->slot.handler_priv;
 	int status;
 
+	printk("mmc_gpio_cd_irqt hot pulg irq\n");
+
 	/*
 	 * In case host->ops are not yet initialized return immediately.
 	 * The card will get detected later when host driver calls

@@ -604,6 +604,8 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 
 	input_report_key(pon->pon_input, cfg->key_code, key_status);
 	input_sync(pon->pon_input);
+	pr_notice("%s: KEY[%u] %s\n", __func__,
+		    cfg->key_code, key_status ? "Down" : "Up");
 
 	cfg->old_state = !!key_status;
 

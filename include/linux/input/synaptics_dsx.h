@@ -68,6 +68,8 @@ struct synaptics_rmi4_platform_data {
 	u32 irq_flags;
 	u32 reset_flags;
 	unsigned reset_gpio;
+    unsigned  power_ldo_gpio;
+	u32 power_ldo_gpio_flags;
 	unsigned panel_minx;
 	unsigned panel_miny;
 	unsigned panel_maxx;

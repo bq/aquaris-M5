@@ -284,7 +284,7 @@
 		};
 
 		usb-id-pin {
-			qcom,pins = <&gp 110>;
+			qcom,pins = <&gp 111>;
 			qcom,num-grp-pins = <1>;
 			qcom,pin-func = <0>;
 			label = "usb-id-pin";
@@ -382,6 +382,42 @@
 			};
 		};
 
+		pmx_i2c_1 {
+			/* CLK, DATA */
+			qcom,pins = <&gp 3>, <&gp 2>;
+			qcom,num-grp-pins = <2>;
+			qcom,pin-func = <3>;
+			label = "pmx_i2c_1";
+
+			i2c_1_active: i2c_1_active {
+				drive-strength = <2>; /* 2 MA */
+				bias-disable;		  /* No PULL */
+			};
+
+			i2c_1_sleep: i2c_1_sleep {
+				drive-strength = <2>; /* 2 MA */
+				bias-disable;		  /* No PULL */
+			};
+		};
+
+		pmx_i2c_3 {
+			/* CLK, DATA */
+			qcom,pins = <&gp 11>, <&gp 10>;
+			qcom,num-grp-pins = <2>;
+			qcom,pin-func = <2>;
+			label = "pmx_i2c_3";
+		
+			i2c_3_active: i2c_3_active {
+				drive-strength = <2>; /* 2 MA */
+				bias-disable;		  /* No PULL */
+			};
+		
+			i2c_3_sleep: i2c_3_sleep {
+				drive-strength = <2>; /* 2 MA */
+				bias-disable;		  /* No PULL */
+			};
+		};
+		
 		pmx_i2c_5 {
 			/* CLK, DATA */
 			qcom,pins = <&gp 19>, <&gp 18>;
@@ -1360,6 +1396,47 @@
 			};
 			mpu6050_sleep: mpu6050_sleep {
 				drive-strength = <2>;
+			};
+		};
+
+		hall_int_pin{
+			qcom,pins = <&gp 20>;
+			qcom,pin-func = <0>;
+			qcom,num-grp-pins = <1>;
+			label = "hall_int_pin";
+			hall_int_active: active {
+				drive-strength = <6>;
+				bias-pull-up;
+			};
+			hall_int_suspend: suspend {
+				drive-strength = <6>;
+				bias-pull-up;
+			};
+		};
+
+		akm09911_rstn_pin {
+			qcom,pins = <&gp 111>;
+			qcom,pin-func = <0>;
+			qcom,num-grp-pins = <1>;
+			label = "akm09911-rstn";
+			akm09911_default: akm09911_default {
+				  drive-strength = <6>;
+				  bias-pull-up;
+			};
+			akm09911_sleep: akm09911_sleep {
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+
+		pa12200001_int_pin {
+			qcom,pins = <&gp 113>;
+			qcom,pin-func = <0>;
+			qcom,num-grp-pins = <1>;
+			label = "pa12200001-irq";
+			pa12200001_default: pa12200001_default {
+				drive-strength = <6>;
+				bias-pull-up;
 			};
 		};
 

@@ -35,7 +35,7 @@
 				&ext_cdc_tlmm_lines_act>;
 		pinctrl-3 = <&cdc_slim_lines_sus &cross_conn_det_sus
 				&ext_cdc_tlmm_lines_sus>;
-		qcom,cdc-us-euro-gpios = <&msm_gpio 120 0>;
+	//	qcom,cdc-us-euro-gpios = <&msm_gpio 121 0>;
 		qcom,headset-jack-type-NC;
 		qcom,audio-routing =
 			"RX_BIAS", "MCLK",
@@ -99,7 +99,7 @@
 		pinctrl-1 = <&cdc_slim_lines_sus>;
 		pinctrl-2 = <&cross_conn_det_act>;
 		pinctrl-3 = <&cross_conn_det_sus>;
-		qcom,cdc-us-euro-gpios = <&msm_gpio 120 0>;
+//		qcom,cdc-us-euro-gpios = <&msm_gpio 121 0>;
 		qcom,headset-jack-type-NC;
 		qcom,audio-routing =
 			"RX_BIAS", "MCLK",
@@ -198,8 +198,8 @@
 		cdc-vdd-cx-supply = <&pm8916_l2>;
 		qcom,cdc-vdd-cx-voltage = <1200000 1200000>;
 		qcom,cdc-vdd-cx-current = <10000>;
-
-		cdc-vdd-spkdrv-supply = <&spk_vreg>;
+		/* xuke @ 20141212	Changed from spk_vreg to pm8916_l2 because of CODEC RESET pin. */
+		cdc-vdd-spkdrv-supply = <&pm8916_l2>;
 		qcom,cdc-vdd-spkdrv-voltage = <5000000 5000000>;
 		qcom,cdc-vdd-spkdrv-current = <20000>;
 
@@ -263,8 +263,8 @@
 		cdc-vddcx-2-supply = <&pm8916_s3>;
 		qcom,cdc-vddcx-2-voltage = <1300000 1300000>;
 		qcom,cdc-vddcx-2-current = <20000>;
-
-		cdc-vdd-spkdrv-supply = <&spk_vreg>;
+		/* xuke @ 20141212	Changed from spk_vreg to pm8916_l2 because of CODEC RESET pin. */
+		cdc-vdd-spkdrv-supply = <&pm8916_l2>;
 		qcom,cdc-vdd-spkdrv-voltage = <5000000 5000000>;
 		qcom,cdc-vdd-spkdrv-current = <20000>;
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -28,11 +28,12 @@
 		smd21 = &smdtty_data21;
 		smd36 = &smdtty_loopback;
 		i2c0 = &i2c_0;
+		i2c1 = &i2c_1;//yht add
+		i2c3 = &i2c_3;
 		i2c4 = &i2c_4;
 		i2c5 = &i2c_5;
 		i2c6 = &i2c_6;
-		spi0 = &spi_0;
-		spi5 = &spi_5;
+		//spi0 = &spi_0; //yht remove it
 	};
 
 	memory {
@@ -51,7 +52,7 @@
 			linux,reserve-contiguous-region;
 			linux,reserve-region;
 			linux,remove-completely;
-			reg = <0x0 0x86800000 0x0 0x05500000>;
+			reg = <0x0 0x86800000 0x0 0x05600000>;
 			label = "modem_adsp_mem";
 		};
 
@@ -59,8 +60,14 @@
 			linux,reserve-contiguous-region;
 			linux,reserve-region;
 			linux,remove-completely;
-			reg = <0x0 0x8bd00000 0x0 0x0600000>;
+			reg = <0x0 0x8be00000 0x0 0x0600000>;
 			label = "peripheral_mem";
+		};
+
+               mba_mem: mba_region@0 {
+			linux,reserve-contiguous-region;
+			reg = <0 0 0 0x0200000>;
+			label = "mba_mem";
 		};
 
 		venus_mem: venus_region@0 {
@@ -823,10 +830,10 @@
 		reg = <0x086000c8 0xc8>;
 		qcom,pm-qos-latency = <2 1001 12701>;
 		qcom,streaming-func = "rndis","mtp";
-		qcom,android-usb-uicc-nluns = /bits/ 8 <1>;
+		/*qcom,android-usb-uicc-nluns = /bits/ 8 <1>;*/
 	};
 
-	uicc: qcom,ehci-host@79c0000 {
+	/*uicc: qcom,ehci-host@79c0000 {
 		compatible = "qcom,ehci-uicc-host";
 		reg = <0x79c0000 0x400>;
 		interrupts = <0 132 0>;
@@ -846,7 +853,7 @@
 		qcom,msm-bus,vectors-KBps =
 				<93 512 0 0>,
 				<93 512 12000 192000>;
-	};
+	};*/
 
 	blsp1_uart2: serial@78b0000 {
 		compatible = "qcom,msm-lsuart-v14";
@@ -907,30 +914,201 @@
 		qcom,master-id = <86>;
 	};
 
-	spi_0: spi@78b7000 { /* BLSP1 QUP3 */
+/*
+	spi_0: spi@78b5000 { // BLSP1 QUP1 
 		compatible = "qcom,spi-qup-v2";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg-names = "spi_physical", "spi_bam_physical";
-		reg = <0x78b7000 0x600>,
+		reg = <0x78b5000 0x600>,
 			<0x7884000 0x23000>;
 		interrupt-names = "spi_irq", "spi_bam_irq";
-		interrupts = <0 97 0>, <0 238 0>;
+		interrupts = <0 95 0>, <0 238 0>;
 		spi-max-frequency = <19200000>;
 		pinctrl-names = "default", "sleep";
 		pinctrl-0 = <&spi0_default &spi0_cs0_active>;
 		pinctrl-1 = <&spi0_sleep &spi0_cs0_sleep>;
 		clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
-			<&clock_gcc clk_gcc_blsp1_qup3_spi_apps_clk>;
+			<&clock_gcc clk_gcc_blsp1_qup1_spi_apps_clk>;
 		clock-names = "iface_clk", "core_clk";
 		qcom,infinite-mode = <0>;
 		qcom,use-bam;
 		qcom,use-pinctrl;
 		qcom,ver-reg-exists;
-		qcom,bam-consumer-pipe-index = <8>;
-		qcom,bam-producer-pipe-index = <9>;
+		qcom,bam-consumer-pipe-index = <4>;
+        	qcom,bam-producer-pipe-index = <5>;
 		qcom,master-id = <86>;
+		
+		florida-codec@0 {
+			compatible = "wlf,wm8280";
+			reg = <0>;
+			wlf,clk-src = "BBCLK2";	//yht add
+			wlf,clk-gpio = <&msm_gpio 63 0>;	//yht add
+			spi-max-frequency = <19200000>;
+			wlf,reset = <&msm_gpio 8 0>;
+			wlf,ldoena   = <&msm_gpio 120 0>;
+			wlf,ldospk   = <&msm_gpio 66 0>;//yht,0120
+			wlf,irq_base = <1024> ;
+			wlf,irq_gpio = <&msm_gpio 67 0>;
+			wlf,ldo-enable = <&msm_gpio 69 0>;
+			AVDD-supply = <&pm8916_l6>;
+			wlf,AVDD-voltage = <1800000 1800000>;
+			wlf,AVDD-current = <25000>;
+			DBVDD1-supply = <&pm8916_l6>;
+			wlf,DBVDD1-voltage = <1800000 1800000>;
+			wlf,DBVDD1-current = <25000>;
+			DBVDD2-supply = <&pm8916_l6>;
+			wlf,DBVDD2-voltage = <1800000 1800000>;
+			wlf,DBVDD2-current = <25000>;
+			DBVDD3-supply = <&pm8916_l6>;
+			wlf,DBVDD3-voltage = <1800000 1800000>;
+			wlf,DBVDD3-current = <25000>;
+			CPVDD-supply = <&pm8916_l6>;
+			wlf,CPVDD-voltage = <1800000 1800000>;
+			wlf,CPVDD-current = <25000>;
+			SPKVDDL-supply = <&pm8916_l6>;
+			wlf,SPKVDDL-voltage = <1800000 1800000>;
+			wlf,SPKVDDL-current = <25000>;
+			SPKVDDR-supply = <&pm8916_l6>;
+			wlf,SPKVDDR-voltage = <1800000 1800000>;
+			wlf,SPKVDDR-current = <25000>;
+			wlf,clk32k_src = <2>;
+			wlf,micd_bias_start_time = <7>;
+			wlf,infinite_micd = <1>;
+			wlf,micd-rate = <6>;
+			wlf,micd-configs = <0x0000 2 1>;
+			wlf,micd-detect-debounce = <500>;
+			wlf,inmode = <0 0 0 0>;
+			wlf,out-mono = <0 0 0 1 1 0>;
+			wlf,micbias1 = <2200 1 1 0 1 0>;
+			wlf,micbias2 = <2200 1 1 0 1 0>;
+			wlf,micbias3 = <2200 1 1 0 1 0>;
+			//wlf,micd-ranges = <>;
+			//wlf,gpio-defaults = <>;
+			//wlf,max-channels-clocked = <>;
+			//wlf,dmic-ref = <>;
+			//wlf,out-mono = <>;
+			//wlf,wm5102t-output-pwr = <>;
+			//wlf,hpdet-ext-res = <>;
+	};
+	
+	};
+*/ // yht remove it
+//yht add start
+	i2c_1: i2c@78b5000 { // BLSP1 QUP1 
+		compatible = "qcom,i2c-msm-v2";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg-names = "qup_phys_addr", "bam_phys_addr";
+		reg = <0x78b5000 0x600>,
+		      <0x7884000 0x23000>;
+		interrupt-names = "qup_irq", "bam_irq";
+		interrupts = <0 95 0>, <0 238 0>;
+		clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
+			 <&clock_gcc clk_gcc_blsp1_qup1_i2c_apps_clk>;
+		clock-names = "iface_clk", "core_clk";
+		qcom,clk-freq-out = <100000>;
+		qcom,clk-freq-in  = <19200000>;
+		pinctrl-names = "i2c_active", "i2c_sleep";
+		pinctrl-0 = <&i2c_1_active>;
+		pinctrl-1 = <&i2c_1_sleep>;
+		qcom,noise-rjct-scl = <0>;
+		qcom,noise-rjct-sda = <0>;
+		qcom,bam-pipe-idx-cons = <4>;
+		qcom,bam-pipe-idx-prod = <5>;
+		qcom,master-id = <86>;
+			wm8998@1a { // Wolfson codec. 
+			compatible = "wlf,wm8998";
+			reg = <0x1a>;
+			//wlf,clk-src = "BBCLK2";
+			//wlf,clk-gpio = <&pm8916_gpios 2 0>;//yht remove
+			clocks = <&clock_rpm clk_bb_clk2>;
+			clock-names = "ref_clk";
+			interrupt-parent = <&msm_gpio>;
+			interrupts = <69 0x2008>;
+			wlf,irq = <&msm_gpio 69 0x2008>;
+			wlf,ldo-enable = <&msm_gpio 28 0>;
+			//wlf,i2c-addr = <&msm_gpio 120 0>;//yht remove, should check code
+			wlf,ena-ldo = <&msm_gpio 114 0>;
+			wlf,reset = <&msm_gpio 120 0>;
+			wlf,clk-gpio = <&msm_gpio 116 0>;//yht add, pay attention for spk and clk, should add in pinctrl?
+			wlf,ldospk   = <&msm_gpio 0 0>;//yht add
+			wlf,init-mic-delay = <500>;//delay time before starting to detect have mic or not
+			pinctrl-names = "wlf_codec_active","wlf_codec_suspend";
+			pinctrl-0 = <&wlf_int_active &wlf_ldo_enable_active 
+				 &wlf_ena_ldo_active &wlf_reset_active &wlf_ldospk_active>;
+			pinctrl-1 = <&wlf_int_suspend &wlf_ldo_enable_suspend 
+				 &wlf_ena_ldo_suspend &wlf_reset_suspend &wlf_ldospk_suspend>;
+			wlf,irq_base = <700>;
+			AVDD-supply = <&pm8916_l6>;
+			wlf,AVDD-voltage = <1800000 1800000>;
+			wlf,AVDD-current = <25000>;
+			DBVDD1-supply = <&pm8916_l6>;
+			wlf,DBVDD1-voltage = <1800000 1800000>;
+			wlf,DBVDD1-current = <25000>;
+			DBVDD2-supply = <&pm8916_l6>;
+			wlf,DBVDD2-voltage = <1800000 1800000>;
+			wlf,DBVDD2-current = <25000>;
+			DBVDD3-supply = <&pm8916_l6>;
+			wlf,DBVDD3-voltage = <1800000 1800000>;
+			wlf,DBVDD3-current = <25000>;
+			CPVDD-supply = <&pm8916_l6>;
+			wlf,CPVDD-voltage = <1800000 1800000>;
+			wlf,CPVDD-current = <25000>;
+			SPKVDDL-supply = <&pm8916_l6>;
+			wlf,SPKVDDL-voltage = <1800000 1800000>;
+			wlf,SPKVDDL-current = <25000>;
+			SPKVDDR-supply = <&pm8916_l6>;
+			wlf,SPKVDDR-voltage = <1800000 1800000>;
+			wlf,SPKVDDR-current = <25000>;
+			wlf,clk32k_src = <2>;
+			wlf,micd_bias_start_time = <7>;
+			wlf,infinite_micd = <1>;
+			wlf,micd-rate = <6>;
+			wlf,micd-configs = <0x0000 2 1>;
+			wlf,micd-detect-debounce = <500>;
+			wlf,inmode = <0 0 0>;
+			wlf,micbias1 = <2800 1 0 1 0>;
+			wlf,micbias2 = <2800 1 0 1 0>;
+			wlf,micbias3 = <2800 1 0 1 0>;
+			micvdd {
+				regulator-min-microvolt = <3000000>;
+				regulator-max-microvolt = <3000000>;
+			};
+			//wlf,micd-ranges = <>;
+			//wlf,gpio-defaults = <>;
+			//wlf,max-channels-clocked = <>;
+			//wlf,dmic-ref = <>;
+			//wlf,out-mono = <>;
+			//wlf,wm5102t-output-pwr = <>;
+			//wlf,hpdet-ext-res = <>;
 		};
+	
+	};
+//yht add end
+	i2c_3: i2c@78b7000 { /* BLSP1 QUP3 */
+		compatible = "qcom,i2c-msm-v2";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg-names = "qup_phys_addr", "bam_phys_addr";
+		reg = <0x78b7000 0x600>,
+		      <0x7884000 0x23000>;
+		interrupt-names = "qup_irq", "bam_irq";
+		interrupts = <0 97 0>, <0 238 0>;
+		clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
+			 <&clock_gcc clk_gcc_blsp1_qup3_i2c_apps_clk>;
+		clock-names = "iface_clk", "core_clk";
+		qcom,clk-freq-out = <100000>;
+		qcom,clk-freq-in  = <19200000>;
+		pinctrl-names = "i2c_active", "i2c_sleep";
+		pinctrl-0 = <&i2c_3_active>;
+		pinctrl-1 = <&i2c_3_sleep>;
+		qcom,noise-rjct-scl = <0>;
+		qcom,noise-rjct-sda = <0>;
+		qcom,bam-pipe-idx-cons = <8>;
+		qcom,bam-pipe-idx-prod = <9>;
+		qcom,master-id = <86>;
+	};
 
 	i2c_4: i2c@78b8000 { /* BLSP1 QUP4 */
 		compatible = "qcom,i2c-msm-v2";
@@ -1157,36 +1335,7 @@
 		clock-frequency = <32768>;
 	};
 
-	blsp1_uart1: serial@78af000 {
-		compatible = "qcom,msm-hsuart-v14";
-		reg = <0x78af000 0x200>,
-			<0x7884000 0x23000>;
-		reg-names = "core_mem", "bam_mem";
-		interrupt-names = "core_irq", "bam_irq", "wakeup_irq";
-		#address-cells = <0>;
-		interrupt-parent = <&blsp1_uart1>;
-		interrupts = <0 1 2>;
-		#interrupt-cells = <1>;
-		interrupt-map-mask = <0xffffffff>;
-		interrupt-map = <0 &intc 0 107 0
-				1 &intc 0 238 0
-				2 &msm_gpio 1 0>;
-		qcom,bam-tx-ep-pipe-index = <0>;
-		qcom,bam-rx-ep-pipe-index = <1>;
-		clocks = <&clock_gcc clk_gcc_blsp1_uart1_apps_clk>,
-			<&clock_gcc clk_gcc_blsp1_ahb_clk>;
-		clock-names = "core_clk", "iface_clk";
-		qcom,msm-bus,name = "blsp1_uart1";
-		qcom,msm-bus,num-cases = <2>;
-		qcom,msm-bus,num-paths = <1>;
-		qcom,msm-bus,vectors-KBps =
-				<86 512 0 0>,
-				<86 512 500 800>;
-		pinctrl-names = "default", "sleep";
-		pinctrl-0 = <&hsuart_active>;
-		pinctrl-1 = <&hsuart_sleep>;
-		status = "disabled";
-	};
+
 
 	qcom,venus@1de0000 {
 		compatible = "qcom,pil-tz-generic";
@@ -1244,6 +1393,7 @@
 
 		qcom,firmware-name = "modem";
 		qcom,pil-self-auth;
+		qcom,pil-mba-region;
 		qcom,sysmon-id = <0>;
 		qcom,ssctl-instance-id = <0x12>;
 
@@ -1257,7 +1407,13 @@
 		/* GPIO output to mss */
 		qcom,gpio-force-stop = <&smp2pgpio_ssr_smp2p_1_out 0 0>;
 		linux,contiguous-region = <&modem_adsp_mem>;
+
+		qcom,mba-mem@0 {
+			compatible = "qcom,pil-mba-mem";
+			linux,contiguous-region = <&mba_mem>;
+		};
 	};
+
 
 	pcm0: qcom,msm-pcm {
 		compatible = "qcom,msm-pcm-dsp";
@@ -1846,3 +2002,4 @@
 	};
 };
 
+#include "msm8939-gpu.dtsi"

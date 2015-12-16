@@ -30,7 +30,13 @@
 #include "mdss_panel.h"
 #include "mdss_mdp.h"
 
+#ifdef CONFIG_L8910_COMMON
+#define STATUS_CHECK_INTERVAL_MS 3000
+#elif defined(CONFIG_L8700_COMMON)
+#define STATUS_CHECK_INTERVAL_MS 2000
+#else
 #define STATUS_CHECK_INTERVAL_MS 5000
+#endif
 #define STATUS_CHECK_INTERVAL_MIN_MS 50
 #define DSI_STATUS_CHECK_DISABLE 0
 

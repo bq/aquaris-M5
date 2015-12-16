@@ -16,6 +16,8 @@
 #include "msm8939-qrd-skuk.dtsi"
 
 / {
+	model = "Qualcomm Technologies, Inc. MSM8939 QRD SKUK";
+	compatible = "qcom,msm8939-qrd-skuk", "qcom,msm8939-qrd", "qcom,msm8939", "qcom,qrd";
 	qcom,board-id = <0x1000b 5>, <0x2000b 5>;
 };
 
@@ -27,27 +29,47 @@
 		interrupts = <62 2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&smb_int_default>;
-		qcom,stat-pulsed-irq;
 		qcom,chg-inhibit-disabled;
-		qcom,float-voltage-mv = <4350>;
-		qcom,iterm-ma = <200>;
-		qcom,charging-timeout = <384>;
-		qcom,otg-batt-curr-limit = <950>;
-		qcom,recharge-thresh-mv = <100>;
+		qcom,stat-pulsed-irq;
+
+    /* battery-profile selection properties */
+		qcom,batt-profile-select;
+		qcom,shdn-after-pwroff;
+		qcom,smb1360-vadc = <&pm8916_vadc>;
+		qcom,batt-id-vref-uv = <1800000>;
+		qcom,batt-id-rpullup-kohm = <100>;
+		qcom,profile-a-rid-kohm = <50>;
+		qcom,profile-b-rid-kohm = <200>;
+		qcom,fg-batt-capacity-mah = <3030>;
+		qcom,fg-cc-soc-coeff = <0x8168>;
+		qcom,fg-delta-soc = <1>;
+                qcom,fg-soc-min = <3>;
+
+		qcom,fg-cutoff-voltage-mv = <3400>;
+		qcom,fg-iterm-ma = <100>;
+		qcom,fg-ibatt-standby-ma = <200>;
+		qcom,fg-cc-to-cv-mv = <4397>;
+		qcom,thermistor-c1-coeff = <0x86C2>;
+
+		qcom,float-voltage-mv = <4420>;
+		qcom,iterm-ma = <100>;
+		qcom,charging-timeout = <768>;
+		qcom,fg-reset-at-pon;
+		qcom,rsense-10mhom;
+		qcom,fg-reset-thresold-mv = <200>;
+		qcom,otg-batt-curr-limit = <1500>;
+		qcom,recharge-thresh-mv = <50>;
 		qcom,thermal-mitigation = <1500 700 600 0>;
 		qcom,fg-auto-recharge-soc = <99>;
 		qcom,empty-soc-disabled;
 		regulator-name = "smb1360_otg_vreg";
 		qcom,awake-min-soc;
-		qcom,batt-profile-select;
-		qcom,smb1360-vadc = <&pm8916_vadc>;
-		qcom,batt-id-vref-uv = <1800000>;
-		qcom,batt-id-rpullup-kohm = <100>;
-		qcom,profile-a-rid-kohm = <33>;
-		qcom,profile-b-rid-kohm = <91>;
-		qcom,config-hard-thresholds;
-		qcom,hot-bat-decidegc = <550>;
-		qcom,cold-bat-decidegc = <(-150)>;
+		qcom,cfg-current-limited = <1100>;
+		qcom,bat-ovp-end-chg-disabled;
+
+		qcom,otp-hard-jeita-config;
+		qcom,otp-hot-bat-decidegc = <550>;
+		qcom,otp-cold-bat-decidegc = <0>;//<(-150)>;
 	};
 };
 
@@ -59,4 +81,13 @@
 &pm8916_bms {
 	status = "ok";
 	qcom,disable-bms;
+};
+
+&usb_otg {
+	qcom,hsusb-otg-mode = <3>;
+	qcom,usbid-gpio = <&msm_gpio 110 0>;
+	qcom,usbid-switch = <&msm_gpio 121 0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&usbid_default>;
+	vbus_otg-supply = <&smb1360_otg_supply>;
 };

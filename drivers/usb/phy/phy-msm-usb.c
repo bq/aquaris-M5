@@ -1716,6 +1716,9 @@ static int msm_otg_notify_chg_type(struct msm_otg *motg)
 
 static int msm_otg_notify_power_supply(struct msm_otg *motg, unsigned mA)
 {
+        int rc = 0;
+        pr_debug("%s:enter",__func__);
+
 	if (!psy) {
 		dev_dbg(motg->phy.dev, "no usb power supply registered\n");
 		goto psy_error;
@@ -1723,14 +1726,21 @@ static int msm_otg_notify_power_supply(struct msm_otg *motg, unsigned mA)
 
 	if (motg->cur_power == 0 && mA > 2) {
 		/* Enable charging */
-		if (power_supply_set_online(psy, true))
+		rc = power_supply_set_online(psy, true);
+                if(rc)
 			goto psy_error;
+                else
+                        wake_lock_timeout(&motg->plug_wake_lock,HZ*5);
+
 		if (power_supply_set_current_limit(psy, 1000*mA))
 			goto psy_error;
 	} else if (motg->cur_power >= 0 && (mA == 0 || mA == 2)) {
 		/* Disable charging */
-		if (power_supply_set_online(psy, false))
+		rc = power_supply_set_online(psy, false);
+                if(rc)
 			goto psy_error;
+                else
+                        wake_lock_timeout(&motg->plug_wake_lock,HZ*5);
 		/* Set max current limit in uA */
 		if (power_supply_set_current_limit(psy, 1000*mA))
 			goto psy_error;
@@ -2276,6 +2286,7 @@ static void msm_otg_chg_check_timer_func(unsigned long data)
 		set_bit(B_FALSE_SDP, &motg->inputs);
 		queue_work(system_nrt_wq, &motg->sm_work);
 	}
+	msm_otg_notify_charger(motg,500);//adb by lct.mshuai @20150123 for sdp
 }
 
 static bool msm_chg_aca_detect(struct msm_otg *motg)
@@ -3740,6 +3751,11 @@ static irqreturn_t msm_otg_irq(int irq, void *data)
 	return ret;
 }
 
+#ifdef CONFIG_TOUCHSCREEN_FT5X06
+extern struct work_struct usbdetect_on;
+extern struct work_struct usbdetect_off;
+#endif
+
 static void msm_otg_set_vbus_state(int online)
 {
 	struct msm_otg *motg = the_msm_otg;
@@ -3747,10 +3763,16 @@ static void msm_otg_set_vbus_state(int online)
 
 	if (online) {
 		pr_debug("PMIC: BSV set\n");
+#ifdef CONFIG_TOUCHSCREEN_FT5X06
+		schedule_work(&usbdetect_on);
+#endif
 		if (test_and_set_bit(B_SESS_VLD, &motg->inputs) && init)
 			return;
 	} else {
 		pr_debug("PMIC: BSV clear\n");
+#ifdef CONFIG_TOUCHSCREEN_FT5X06
+		schedule_work(&usbdetect_off);
+#endif
 		if (!test_and_clear_bit(B_SESS_VLD, &motg->inputs) && init)
 			return;
 	}
@@ -3835,6 +3857,8 @@ static void msm_id_status_w(struct work_struct *w)
 static irqreturn_t msm_id_irq(int irq, void *data)
 {
 	struct msm_otg *motg = data;
+
+	printk("--------otg_irq handler------\n");
 
 	if (test_bit(MHL, &motg->inputs) ||
 			mhl_det_in_progress) {
@@ -4802,6 +4826,14 @@ struct msm_otg_platform_data *msm_otg_dt_to_pdata(struct platform_device *pdev)
 	if (pdata->usb_id_gpio < 0)
 		pr_debug("usb_id_gpio is not available\n");
 
+	pdata->usbid_switch = of_get_named_gpio(node, "qcom,usbid-switch", 0);
+	if (pdata->usbid_switch < 0)
+		pr_debug("usbid_switch is not available\n");
+	else{
+		gpio_request(pdata->usbid_switch, "USB_ID_SWITCH");
+		gpio_direction_output(pdata->usbid_switch, 1);
+	}
+
 	pdata->l1_supported = of_property_read_bool(node,
 				"qcom,hsusb-l1-supported");
 	pdata->enable_ahb2ahb_bypass = of_property_read_bool(node,
@@ -5213,6 +5245,7 @@ static int msm_otg_probe(struct platform_device *pdev)
 	if (ret)
 		dev_dbg(&pdev->dev, "MHL can not be supported\n");
 	wake_lock_init(&motg->wlock, WAKE_LOCK_SUSPEND, "msm_otg");
+	wake_lock_init(&motg->plug_wake_lock, WAKE_LOCK_SUSPEND, "plug_or_unplug");
 	msm_otg_init_timer(motg);
 	INIT_WORK(&motg->sm_work, msm_otg_sm_work);
 	INIT_DELAYED_WORK(&motg->chg_work, msm_chg_detect_work);
@@ -5499,6 +5532,7 @@ static int msm_otg_remove(struct platform_device *pdev)
 	device_init_wakeup(&pdev->dev, 0);
 	pm_runtime_disable(&pdev->dev);
 	wake_lock_destroy(&motg->wlock);
+	wake_lock_destroy(&motg->plug_wake_lock);
 
 	msm_hsusb_mhl_switch_enable(motg, 0);
 	if (motg->pdata->pmic_id_irq)

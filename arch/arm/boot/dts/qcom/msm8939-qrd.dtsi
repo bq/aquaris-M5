@@ -12,9 +12,7 @@
 
 #include "msm8939-pinctrl.dtsi"
 
-&blsp1_uart1 {
-	status = "disabled";
-};
+
 
 &blsp1_uart2 {
 	status = "ok";
@@ -22,27 +20,7 @@
 	pinctrl-0 = <&uart_console_sleep>;
 };
 
-&soc {
-	i2c@78ba000 { /* BLSP1 QUP6 */
-		nfc-nci@e {
-			compatible = "qcom,nfc-nci";
-			reg = <0x0e>;
-			qcom,irq-gpio = <&msm_gpio 21 0x00>;
-			qcom,dis-gpio = <&msm_gpio 20 0x00>;
-			qcom,clk-src = "BBCLK2";
-			qcom,clk-en-gpio = <&msm_gpio 0 0x00>;
-			interrupt-parent = <&msm_gpio>;
-			interrupts = <21 0>;
-			interrupt-names = "nfc_irq";
-			pinctrl-names = "nfc_active","nfc_suspend";
-			pinctrl-0 = <&nfc_int_active &nfc_disable_active>;
-			pinctrl-1 = <&nfc_int_suspend &nfc_disable_suspend>;
-			qcom,clk-gpio = <&pm8916_gpios 2 0>;
-			clocks = <&clock_rpm clk_bb_clk2_pin>;
-			clock-names = "ref_clk";
-		};
-	};
-};
+
 
 &spmi_bus {
 	qcom,pm8916@1 {
@@ -54,7 +32,7 @@
 	};
 
 	qcom,pm8916@0 {
-		qcom,leds@a100 {
+		/*qcom,leds@a100 {
 			status = "okay";
 			qcom,led_mpp_2 {
 				label = "mpp";
@@ -68,7 +46,7 @@
 				qcom,source-sel = <1>;
 				qcom,mode-ctrl = <0x60>;
 			};
-		};
+		};*/
 	};
 };
 
@@ -115,8 +93,20 @@
 	};
 };
 
+&pm8916_gpios {
+	gpio@c100 { /* GPIO 2 */
+		/* Wolfson CODEC WM8998 */
+		qcom,mode = <0>; /* QPNP_PIN_MODE_DIG_IN */
+		qcom,pull = <5>; /* QPNP_PIN_PULL_NO */
+		qcom,vin-sel = <2>; /* QPNP_PIN_VIN2 */
+		qcom,src-sel = <2>; /* QPNP_PIN_SEL_FUNC_1 */
+		qcom,master-en = <1>;
+	};
+};
+
 &sdhc_1 {
 	vdd-supply = <&pm8916_l8>;
+	qcom,vdd-always-on;
 	qcom,vdd-voltage-level = <2900000 2900000>;
 	qcom,vdd-current-level = <200 400000>;
 
@@ -157,7 +147,7 @@
 			1 &intc 0 221 0
 			2 &msm_gpio 38 0>;
 	interrupt-names = "hc_irq", "pwr_irq", "status_irq";
-	cd-gpios = <&msm_gpio 38 0x0>;
+	cd-gpios = <&msm_gpio 38 0x1>;
 
 	status = "ok";
 };
@@ -187,7 +177,8 @@
 };
 
 &apc_vreg_corner {
-	vdd-apc-supply = <&fan53555>;
+  	vdd-apc-optional-prim-supply = <&fan53555>;
+	vdd-apc-supply = <&ncp6335d>;
 	qcom,cpr-step-quotient = <26>;
 	qcom,cpr-apc-volt-step = <12500>;
 	qcom,cpr-up-threshold = <2>;

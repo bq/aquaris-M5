@@ -903,7 +903,11 @@ static bool wcd_is_special_headset(struct wcd_mbhc *mbhc)
 	u16 result2;
 	struct snd_soc_codec *codec = mbhc->codec;
 	int delay = 0;
+#if defined(CONFIG_L8720_COMMON)	// xuke @ 20150306	Don't treat high-Z headphone as lineout device.
+	bool ret = true;
+#else
 	bool ret = false;
+#endif
 
 	/*
 	 * Enable micbias if not already enabled
@@ -1015,6 +1019,9 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 					 */
 					pr_debug("%s: switch didnt work\n",
 						  __func__);
+#if defined(CONFIG_L8720_COMMON)	// xuke @ 20150305	Treats EURO type headset as headphone.
+					plug_type = MBHC_PLUG_TYPE_HEADPHONE;
+#endif
 					goto report;
 				} else if (mbhc->mbhc_cfg->swap_gnd_mic) {
 					pr_debug("%s: US_EU gpio present, flip switch\n",

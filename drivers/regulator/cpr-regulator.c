@@ -1405,6 +1405,9 @@ static int cpr_pvs_per_corner_init(struct device_node *of_node,
 		fuse_sel += 4;
 	}
 
+	// Lower VDD_APC by 30mV
+	cpr_vreg->pvs_corner_v[i] -= 30000;
+
 	rc = cpr_adjust_init_voltages(of_node, cpr_vreg);
 	if (rc)
 		goto done;
@@ -2986,6 +2989,10 @@ static int cpr_init_cpr_efuse(struct platform_device *pdev,
 		/* Unpack the target quotient by scaling. */
 		cpr_vreg->cpr_fuse_target_quot[i] *= quot_scale[i].multiplier;
 		cpr_vreg->cpr_fuse_target_quot[i] += quot_scale[i].offset;
+
+		// Lower VDD_APC by 30mV
+		cpr_vreg->cpr_fuse_target_quot[i] -= 62;
+
 		cpr_info(cpr_vreg,
 			"Corner[%d]: ro_sel = %d, target quot = %d\n", i,
 			cpr_vreg->cpr_fuse_ro_sel[i],
@@ -2998,6 +3005,7 @@ static int cpr_init_cpr_efuse(struct platform_device *pdev,
 				< cpr_vreg->cpr_fuse_target_quot[i - 1]) {
 			cpr_vreg->cpr_fuse_disable = true;
 			cpr_err(cpr_vreg, "invalid quotient values; permanently disabling CPR\n");
+			//goto error;  //CR823331
 		}
 	}
 

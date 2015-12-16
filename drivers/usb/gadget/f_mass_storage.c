@@ -315,6 +315,9 @@ struct fsg_common {
 	char inquiry_string[8 + 16 + 4 + 1];
 
 	struct kref		ref;
+#ifdef CONFIG_ONLY_BICR_SUPPORT
+	int  bicr;
+#endif
 };
 
 struct fsg_config {
@@ -391,6 +394,9 @@ static void set_bulk_out_req_length(struct fsg_common *common,
 	if (rem > 0)
 		length += common->bulk_out_maxpacket - rem;
 	bh->outreq->length = length;
+#ifdef CONFIG_ONLY_BICR_SUPPORT
+	bh->outreq->short_not_ok = 1;
+#endif
 }
 
 
@@ -554,7 +560,16 @@ static int fsg_setup(struct usb_function *f,
 				w_length != 1)
 			return -EDOM;
 		VDBG(fsg, "get max LUN\n");
+#ifdef CONFIG_ONLY_BICR_SUPPORT
+		if(fsg->common->bicr) {
+			/*When enable bicr, only share ONE LUN.*/
+			*(u8 *)req->buf = 0;
+		} else {
+			*(u8 *)req->buf = fsg->common->nluns - 1;
+		}
+#else
 		*(u8 *)req->buf = fsg->common->nluns - 1;
+#endif
 
 		/* Respond with data/status */
 		req->length = min((u16)1, w_length);
@@ -2914,6 +2929,9 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 	common->ep0 = gadget->ep0;
 	common->ep0req = cdev->req;
 	common->cdev = cdev;
+#ifdef CONFIG_ONLY_BICR_SUPPORT
+	common->bicr = 0;
+#endif
 
 	/*
 	 * Create the LUNs, open their backing files, and register the
@@ -2949,6 +2967,23 @@ buffhds_first_it:
 
 	/* Prepare inquiryString */
 	i = get_default_bcdDevice();
+#ifdef CONFIG_L8720_CTM_A01
+	snprintf(common->inquiry_string, sizeof common->inquiry_string,
+	 "%-8s%-16s%04x", cfg->vendor_name ?: "BLU",
+	 /* Assume product name dependent on the first LUN */
+	 cfg->product_name ?: (common->luns->cdrom
+				 ? "CDROM"
+				 : "VIVO LTE"),
+	 i);
+#elif defined(CONFIG_L8720_MCX_A01)
+	snprintf(common->inquiry_string, sizeof common->inquiry_string,
+		 "%-8s%-16s%04x", cfg->vendor_name ?: "Micromax",
+		 /* Assume product name dependent on the first LUN */
+		 cfg->product_name ?: (common->luns->cdrom
+				     ? "CDROM"
+				     : "E471"),
+		 i);
+#else
 	snprintf(common->inquiry_string, sizeof common->inquiry_string,
 		 "%-8s%-16s%04x", cfg->vendor_name ?: "Linux",
 		 /* Assume product name dependent on the first LUN */
@@ -2956,6 +2991,7 @@ buffhds_first_it:
 				     ? "File-Stor Gadget"
 				     : "File-CD Gadget"),
 		 i);
+#endif
 
 	/*
 	 * Some peripheral controllers are known not to be able to

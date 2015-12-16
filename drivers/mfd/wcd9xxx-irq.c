@@ -135,7 +135,6 @@ static void wcd9xxx_irq_ack(struct irq_data *data)
 	int wcd9xxx_irq = 0;
 	struct wcd9xxx_core_resource *wcd9xxx_res =
 			irq_data_get_irq_chip_data(data);
-
 	if (wcd9xxx_res == NULL) {
 		pr_err("%s: wcd9xxx_res is NULL\n", __func__);
 		return;
@@ -144,7 +143,6 @@ static void wcd9xxx_irq_ack(struct irq_data *data)
 	pr_debug("%s: IRQ_ACK called for WCD9XXX IRQ: %d\n",
 				__func__, wcd9xxx_irq);
 }
-
 static void wcd9xxx_irq_mask(struct irq_data *d)
 {
 	/* do nothing but required as linux calls irq_mask without NULL check */

@@ -175,6 +175,11 @@ static int msm_csiphy_lane_config(struct csiphy_device *csiphy_dev,
 		msm_camera_io_w(csiphy_params->settle_cnt,
 			csiphybase + csiphy_dev->ctrl_reg->csiphy_reg.
 			mipi_csiphy_lnn_cfg3_addr + 0x40*j);
+	// add for hynix	
+		msm_camera_io_w(0x0b,
+			csiphybase + csiphy_dev->ctrl_reg->csiphy_reg.
+			mipi_csiphy_lnn_cfg4_addr + 0x40*j);
+		
 		msm_camera_io_w(csiphy_dev->ctrl_reg->csiphy_reg.
 			mipi_csiphy_interrupt_mask_val, csiphybase +
 			csiphy_dev->ctrl_reg->csiphy_reg.

@@ -14,6 +14,8 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/of_platform.h>
+
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/ioport.h>
@@ -142,6 +144,13 @@ static int modem_powerup(const struct subsys_desc *subsys)
 	return pil_boot(&drv->q6->desc);
 }
 
+static void modem_free_memory(const struct subsys_desc *subsys)
+	{	
+		struct modem_data *drv = subsys_to_drv(subsys);
+		pil_free_memory(&drv->q6->desc);
+	}
+
+
 static void modem_crash_shutdown(const struct subsys_desc *subsys)
 {
 	struct modem_data *drv = subsys_to_drv(subsys);
@@ -202,6 +211,7 @@ static int pil_subsys_init(struct modem_data *drv,
 	drv->subsys_desc.owner = THIS_MODULE;
 	drv->subsys_desc.shutdown = modem_shutdown;
 	drv->subsys_desc.powerup = modem_powerup;
+	drv->subsys_desc.free_memory = modem_free_memory;
 	drv->subsys_desc.ramdump = modem_ramdump;
 	drv->subsys_desc.crash_shutdown = modem_crash_shutdown;
 	drv->subsys_desc.err_fatal_handler = modem_err_fatal_intr_handler;
@@ -326,6 +336,9 @@ static int pil_mss_loadable_init(struct modem_data *drv,
 			"qcom,active-clock-names", "gpll0_mss_clk") >= 0)
 		q6->gpll0_mss_clk = devm_clk_get(&pdev->dev, "gpll0_mss_clk");
 
+	q6->mba_region = of_property_read_bool(pdev->dev.of_node,
+		"qcom,pil-mba-region");
+
 	ret = pil_desc_init(q6_desc);
 
 	return ret;
@@ -352,6 +365,11 @@ static int pil_mss_driver_probe(struct platform_device *pdev)
 	}
 	init_completion(&drv->stop_ack);
 
+	/* Probe the MBA mem device if present */
+	ret = of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
+	if (ret)
+		return ret;
+
 	return pil_subsys_init(drv, pdev);
 }
 
@@ -364,6 +382,30 @@ static int pil_mss_driver_exit(struct platform_device *pdev)
 	pil_desc_release(&drv->q6->desc);
 	return 0;
 }
+static int pil_mba_mem_driver_probe(struct platform_device *pdev)
+{
+	struct modem_data *drv;
+	
+	if (!pdev->dev.parent)
+		return -EINVAL;
+	drv = dev_get_drvdata(pdev->dev.parent);
+	drv->mba_mem_dev_fixed = &pdev->dev;
+	
+		return 0;
+}
+
+static struct of_device_id mba_mem_match_table[] = {
+	{ .compatible = "qcom,pil-mba-mem" },
+	{}
+};
+static struct platform_driver pil_mba_mem_driver = {
+	.probe = pil_mba_mem_driver_probe,
+	.driver = {
+	.name = "pil-mba-mem",
+	.of_match_table = mba_mem_match_table,
+	.owner = THIS_MODULE,
+		},
+};
 
 static struct of_device_id mss_match_table[] = {
 	{ .compatible = "qcom,pil-q6v5-mss" },
@@ -384,7 +426,12 @@ static struct platform_driver pil_mss_driver = {
 
 static int __init pil_mss_init(void)
 {
-	return platform_driver_register(&pil_mss_driver);
+		int ret;
+			ret = platform_driver_register(&pil_mba_mem_driver);
+			if (!ret)
+			ret = platform_driver_register(&pil_mss_driver);
+	
+		return ret;
 }
 module_init(pil_mss_init);
 
