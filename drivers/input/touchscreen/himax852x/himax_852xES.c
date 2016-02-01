@@ -835,6 +835,7 @@ static void himax_fw_update(void)
 }
 #endif
 
+static bool boot_probe;
 static int himax_loadSensorConfig(struct i2c_client *client, struct himax_i2c_platform_data *pdata)
 {
 #ifdef HX_ESD_WORKAROUND
@@ -869,7 +870,10 @@ static int himax_loadSensorConfig(struct i2c_client *client, struct himax_i2c_pl
 		//IC is abnormal
 		pr_err("IC is abnormal ! data[0]=%d, data[1]=%d, %u\n",
 			data[0], data[1], ESD_R36_FAIL);
-		return -1;
+		if (boot_probe)
+			boot_probe = false;
+		else
+			return -1;
 	}
 #endif
 
@@ -902,6 +906,7 @@ static void himax_hw_reset(uint8_t loadconfig, uint8_t int_off)
 }
 #endif
 
+#if 0
 static bool himax_ic_package_check(struct himax_ts_data *ts)
 {
 	uint8_t cmd[3];
@@ -920,9 +925,10 @@ static bool himax_ic_package_check(struct himax_ts_data *ts)
 		pr_info("Himax IC package '852x ES'\n");
 	else
 		pr_warn("Unknown IC package !\n");
-	
+
 	return true;
 }
+#endif
 
 static void himax_read_tp_info(struct i2c_client *client)
 {
@@ -2385,13 +2391,13 @@ static int himax852xes_probe(struct i2c_client *client, const struct i2c_device_
 	err = himax_gpio_power_config(ts->client, pdata);
 	if (err)
 		goto err_dt_platform_data_fail;
-
+#if 0
 	if (!himax_ic_package_check(ts)) {
 		pr_err("Himax chip is not found !\n");
 		err = -ENOMEM;
 		goto err_ic_gpio_power_failed;
 	}
-
+#endif
 	if (pdata->virtual_key)
 		ts->button = pdata->virtual_key;
 
@@ -2402,6 +2408,7 @@ static int himax852xes_probe(struct i2c_client *client, const struct i2c_device_
 #endif
 
 	//Himax Power On and Load Config
+	boot_probe = true;
 	if (himax_loadSensorConfig(client, pdata) < 0) {
 		pr_err("load sensor configuration failed !\n");
 		err = -ENOMEM;
@@ -2532,7 +2539,7 @@ static int himax852xes_probe(struct i2c_client *client, const struct i2c_device_
 	}
 
 	is_tp_driver_loaded = 1;
-	pr_info("success !\n");
+	pr_info("successfully\n");
 	return 0;
 
 err_sysfs_init_failed:

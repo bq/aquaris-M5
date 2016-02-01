@@ -4424,10 +4424,12 @@ static int smb1360_hw_init(struct smb1360_chip *chip)
 		return rc;
 	}
 
+	/* changed to enable ovp, for battery safe */
         rc = smb1360_masked_write(chip, CFG_CHG_MISC_REG,
                                         BAT_OVP_END_CHG_BIT,
-                                        chip->bat_ovp_end_chg_disabled ?
-                                        0 : CFG_CHG_INHIBIT_EN_BIT);
+					BAT_OVP_END_CHG_BIT);
+                                        /* chip->bat_ovp_end_chg_disabled ?
+                                        0: BAT_OVP_END_CHG_BIT); */
         if (rc) {
                 dev_err(chip->dev, "Couldn't set chg_inhibit rc = %d\n", rc);
                 return rc;

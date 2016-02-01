@@ -62,10 +62,10 @@
 #define DIF(x...)
 #endif
 
-#define HX_TP_SYS_DIAG
+//#define HX_TP_SYS_DIAG
 #define HX_TP_SYS_SELF_TEST
 #define HX_TP_SYS_RESET
-#define HX_TP_SYS_2T2R
+//#define HX_TP_SYS_2T2R
 #define HX_TP_SYS_DEBUG
 
 //#define HX_EN_SEL_BUTTON		       // Support Self Virtual key		,default is close

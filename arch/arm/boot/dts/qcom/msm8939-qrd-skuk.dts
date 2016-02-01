@@ -65,7 +65,6 @@
 		regulator-name = "smb1360_otg_vreg";
 		qcom,awake-min-soc;
 		qcom,cfg-current-limited = <1100>;
-		qcom,bat-ovp-end-chg-disabled;
 
 		qcom,otp-hard-jeita-config;
 		qcom,otp-hot-bat-decidegc = <550>;
