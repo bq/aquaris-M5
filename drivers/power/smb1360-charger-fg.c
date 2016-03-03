@@ -332,6 +332,7 @@ struct smb1360_chip {
 	bool				shdn_after_pwroff;
 	bool				config_hard_thresholds;
 	bool				soft_jeita_supported;
+	bool				battery_ovp_supported;
 #ifdef CONFIG_L8720_MCX_A01
 	//add by lct.mshuai @20141114
 	struct delayed_work 		temp_work;
@@ -4173,7 +4174,7 @@ static int smb1360_jeita_init(struct smb1360_chip *chip)
 			}
 		}
 	} else {
-		if (chip->soft_jeita_supported) {
+		if (chip->soft_jeita_supported || chip->battery_ovp_supported) {
 			temp = min(chip->warm_bat_ma, chip->cool_bat_ma);
 			rc = smb1360_set_jeita_comp_curr(chip, temp);
 			if (rc) {
@@ -4753,6 +4754,26 @@ static int smb1360_parse_jeita_params(struct smb1360_chip *chip)
 					chip->otp_hot_bat_decidegc);
 	}
 
+         if (of_property_read_bool(node, "qcom,battery-ovp-supported")) {
+		/* set this property for 0x14 register */
+		chip->battery_ovp_supported = true;
+
+		rc = of_property_read_u32(node, "qcom,warm-bat-mv",
+						&chip->warm_bat_mv);
+		if (rc)
+			pr_err("warm_bat_mv property error for ovp, rc = %d\n", rc);
+
+		rc = of_property_read_u32(node, "qcom,warm-bat-ma",
+						&chip->warm_bat_ma);
+		if (rc)
+			pr_err("warm_bat_ma property error for ovp, rc = %d\n", rc);
+
+		rc = of_property_read_u32(node, "qcom,cool-bat-ma",
+						&chip->cool_bat_ma);
+		if (rc)
+			pr_err("cool_bat_ma property error for ovp, rc = %d\n", rc);
+	}
+
 	if (of_property_read_bool(node, "qcom,soft-jeita-supported")) {
 		rc = of_property_read_u32(node, "qcom,warm-bat-decidegc",
 						&chip->warm_bat_decidegc);
@@ -4815,8 +4836,8 @@ static int smb1360_parse_jeita_params(struct smb1360_chip *chip)
 		}
 	}
 
-	pr_debug("soft-jeita-enabled = %d, warm-bat-decidegc = %d, cool-bat-decidegc = %d, cool-bat-mv = %d, warm-bat-mv = %d, cool-bat-ma = %d, warm-bat-ma = %d\n",
-		chip->soft_jeita_supported, chip->warm_bat_decidegc,
+	pr_debug("soft-jeita-enabled = %d, battery-ovp-supported = %d, warm-bat-decidegc = %d, cool-bat-decidegc = %d, cool-bat-mv = %d, warm-bat-mv = %d, cool-bat-ma = %d, warm-bat-ma = %d\n",
+		chip->soft_jeita_supported, chip->battery_ovp_supported, chip->warm_bat_decidegc,
 		chip->cool_bat_decidegc, chip->cool_bat_mv, chip->warm_bat_mv,
 		chip->cool_bat_ma, chip->warm_bat_ma);
 
