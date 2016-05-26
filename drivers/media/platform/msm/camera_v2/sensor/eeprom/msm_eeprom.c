@@ -25,6 +25,8 @@ DEFINE_MSM_MUTEX(msm_eeprom_mutex);
 #ifdef CONFIG_COMPAT
 static struct v4l2_file_operations msm_eeprom_v4l2_subdev_fops;
 #endif
+struct vendor_eeprom s_vendor_eeprom[CAMERA_VENDOR_EEPROM_COUNT_MAX];
+
 /**
   * msm_eeprom_verify_sum - verify crc32 checksum
   * @mem:	data buffer
@@ -258,6 +260,8 @@ static const struct v4l2_subdev_internal_ops msm_eeprom_internal_ops = {
 	.open = msm_eeprom_open,
 	.close = msm_eeprom_close,
 };
+
+
 /**
   * read_eeprom_memory() - read map data into buffer
   * @e_ctrl:	eeprom control struct
@@ -920,6 +924,92 @@ static long msm_eeprom_subdev_fops_ioctl32(struct file *file, unsigned int cmd,
 
 #endif
 
+static camera_vendor_module_id imx214_get_otp_vendor_module_id(struct msm_eeprom_ctrl_t *e_ctrl)
+{
+	int pageIndex = 0;
+	uint8_t mid=0;
+	uint8_t flag=0;
+	uint8_t PageSize = 64;
+	uint8_t *buffer = e_ctrl->cal_data.mapdata;
+	bool rc = false;
+
+	for (pageIndex = 2; pageIndex > -1; pageIndex--)
+	{
+		mid = buffer[1+PageSize*pageIndex];
+		switch(mid){
+			case MID_OFILM:
+			case MID_SUNNY:
+				flag = buffer[PageSize*pageIndex];
+				rc = (flag == 0x1) ? true : false;
+				break;
+			case MID_TRULY:
+				flag = buffer[63+PageSize*pageIndex];
+				rc = (flag == 0x0) ? true : false;
+				break;
+			default:
+				flag = 0;
+				mid = 0;
+				rc = false;
+				break;
+		}
+		if(rc==true) break;
+	}
+	if(rc==false) mid = MID_NULL;
+	return mid;
+
+}
+
+static camera_vendor_module_id s5k5e2_get_otp_vendor_module_id(struct msm_eeprom_ctrl_t *e_ctrl)
+{
+	int pageIndex, groupIndex;
+	uint8_t mid=0;
+	uint8_t flag=0;
+	uint8_t PageSize = 64;
+	uint8_t GroupSize = 32;
+	uint8_t *buffer = e_ctrl->cal_data.mapdata;
+	bool rc = false;
+
+	for (pageIndex=0;pageIndex<2;pageIndex++){
+		for (groupIndex=0;groupIndex<2;groupIndex++){
+			mid = buffer[PageSize*pageIndex + GroupSize*groupIndex];
+			switch(mid){
+				case MID_OFILM:
+				case MID_KINGCOM:
+					flag = buffer[PageSize*pageIndex+GroupSize*groupIndex+(GroupSize-1)];
+					rc = (flag == 0x1) ? true : false;
+					break;
+				default:
+					flag = 0;
+					mid = 0;
+					rc = false;
+					break;
+			}
+			if(rc==true) break;
+		}
+		if(rc==true) break;
+	}
+	if(rc==false) mid = MID_NULL;
+	return mid;
+}
+
+static uint8_t get_otp_vendor_module_id(struct msm_eeprom_ctrl_t *e_ctrl, const char *eeprom_name)
+{
+	camera_vendor_module_id module_id=MID_NULL;
+	if((strcmp(eeprom_name, "imx214_olqba15") == 0)
+		|| (strcmp(eeprom_name, "imx214_f13n05e") == 0)
+		|| (strcmp(eeprom_name, "imx214_f13n05k") == 0)
+		|| (strcmp(eeprom_name, "imx214_olqba22") == 0)){
+		module_id = imx214_get_otp_vendor_module_id(e_ctrl);
+	}else if(strcmp(eeprom_name,"s5k5e2_olq5f24") == 0
+		|| (strcmp(eeprom_name, "s5k5e2_s7b5") == 0)){
+		module_id = s5k5e2_get_otp_vendor_module_id(e_ctrl);
+	}
+	pr_info("%s eeprom_name=%s, module_id=%d\n",__func__,eeprom_name,module_id);
+	if(module_id>=MID_MAX) module_id = MID_NULL;
+
+	return ((uint8_t)module_id);
+}
+
 static int msm_eeprom_platform_probe(struct platform_device *pdev)
 {
 	int rc = 0;
@@ -1050,6 +1140,10 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 	for (j = 0; j < e_ctrl->cal_data.num_data; j++)
 		CDBG("memory_data[%d] = 0x%X\n", j,
 			e_ctrl->cal_data.mapdata[j]);
+	if(eb_info->eeprom_name != NULL){
+		s_vendor_eeprom[pdev->id].module_id = get_otp_vendor_module_id(e_ctrl, eb_info->eeprom_name);
+		strcpy(s_vendor_eeprom[pdev->id].eeprom_name, eb_info->eeprom_name);
+	}
 
 	e_ctrl->is_supported |= msm_eeprom_match_crc(&e_ctrl->cal_data);
 

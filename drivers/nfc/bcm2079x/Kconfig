@@ -1,0 +1,10 @@
+config NFC_BCM2079X_I2C
+        tristate "BCM2079X NFC driver"
+        depends on I2C
+        default n
+        ---help---
+          Say yes if you want BCM20791 Near Field Communication driver.
+          This is for i2c connected version. If unsure, say N here.
+
+          To compile this driver as a module, choose m here. The module will
+          be called bcm2079x.

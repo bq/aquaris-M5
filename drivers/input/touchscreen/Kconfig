@@ -88,7 +88,7 @@ config TOUCHSCREEN_AD7879_SPI
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7879-spi.
 
-config TOUCHSCREEN_ATMEL_MXT
+config TOUCHSCREEN_ATMEL_MXTS
 	tristate "Atmel mXT I2C Touchscreen"
 	depends on I2C
 	help
@@ -946,6 +946,10 @@ config TOUCHSCREEN_FT5X06_PSENSOR
 
          If unsure, say N.
 
+config FTS_GESTURE
+	bool "FT5x06 doble tap"
+
+
 config TOUCHSCREEN_FT5X06_GESTURE
        tristate "FocalTech gesture feature support"
        depends on TOUCHSCREEN_FT5X06
@@ -954,6 +958,32 @@ config TOUCHSCREEN_FT5X06_GESTURE
          feature.
 
          If unsure, say N.
+
+config TOUCHSCREEN_HIMAX852X
+	tristate "Himax touchscreens"
+	depends on I2C
+	help
+		Say Y here if you have a hx852x touchscreen.
+		hx852x controllers are multi touch controllers which can
+		report 5 touches at a time.
+		If unsure, say N.
+		To compile this driver as a module, choose M here: the
+		module will be called hx852x.
+
+
+config TOUCHSCREEN_CYPRESS_CYTTSP5
+	tristate "Cypress TrueTouch Gen5 Touchscreen Driver"
+	help
+	  Core driver for Cypress TrueTouch(tm) Standard Product
+	  Geneartion5 touchscreen controllers.
+
+	  Say Y here if you have a Cypress Gen5 touchscreen.
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cyttsp5.
+
+source "drivers/input/touchscreen/cyttsp5/Kconfig"
 
 config TOUCHSCREEN_MSTAR21XX
        tristate "mstar touchscreens"
@@ -1021,7 +1051,7 @@ config TOUCHSCREEN_SYNAPTICS_DSX_FW_UPDATE
 
 config SECURE_TOUCH
 	bool "Secure Touch"
-	depends on (TOUCHSCREEN_ATMEL_MXT || TOUCHSCREEN_SYNAPTICS_I2C_RMI4 || \
+	depends on (TOUCHSCREEN_ATMEL_MXTS || TOUCHSCREEN_SYNAPTICS_I2C_RMI4 || \
 	  TOUCHSCREEN_SYNAPTICS_DSX_I2C_v21 || TOUCHSCREEN_ATMEL_MAXTOUCH_TS)
 	help
 	  Say Y here to enable Secure Touch in supported drivers.

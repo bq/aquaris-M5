@@ -2332,12 +2332,24 @@ static irqreturn_t sdhci_msm_pwr_irq(int irq, void *data)
 	struct sdhci_host *host = (struct sdhci_host *)data;
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_msm_host *msm_host = pltfm_host->priv;
+	struct sdhci_msm_pltfm_data *pdata = msm_host->pdata;
+	struct sdhci_msm_slot_reg_data *curr_slot;
+	struct sdhci_msm_reg_data *curr_vdd_reg;
 	u8 irq_status = 0;
 	u8 irq_ack = 0;
 	int ret = 0;
 	int pwr_state = 0, io_level = 0;
 	unsigned long flags;
 	int retry = 10;
+
+	curr_slot = pdata->vreg_data;
+	curr_vdd_reg = curr_slot->vdd_data;
+
+	if((msm_host->mmc->card) && (msm_host->mmc->card->cid.manfid == CID_MANFID_HYNIX) 
+		&& (msm_host->mmc->card->ext_csd.rev == 7) && (curr_vdd_reg->is_always_on == 0)) {
+		pr_debug("sdhci_msm_pwr_irq with card->cid.manfid is %x and card->ext_csd.rev is %d \n", msm_host->mmc->card->cid.manfid, msm_host->mmc->card->ext_csd.rev);
+		curr_vdd_reg->is_always_on = true;
+	}
 
 	irq_status = readb_relaxed(msm_host->core_mem + CORE_PWRCTL_STATUS);
 	pr_debug("%s: Received IRQ(%d), status=0x%x\n",
@@ -3552,7 +3564,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	msm_host->mmc->caps2 |= MMC_CAP2_PACKED_WR_CONTROL;
 	msm_host->mmc->caps2 |= (MMC_CAP2_BOOTPART_NOACC |
 				MMC_CAP2_DETECT_ON_ERR);
-	msm_host->mmc->caps2 |= MMC_CAP2_CACHE_CTRL;
+	//msm_host->mmc->caps2 |= MMC_CAP2_CACHE_CTRL;
 	msm_host->mmc->caps2 |= MMC_CAP2_POWEROFF_NOTIFY;
 	msm_host->mmc->caps2 |= MMC_CAP2_CLK_SCALE;
 	msm_host->mmc->caps2 |= MMC_CAP2_STOP_REQUEST;

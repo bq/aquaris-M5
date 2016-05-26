@@ -828,9 +828,14 @@ static u8 sdhci_calc_timeout(struct sdhci_host *host, struct mmc_command *cmd)
 	if (!data)
 		target_timeout = cmd->cmd_timeout_ms * 1000;
 	else {
-		target_timeout = data->timeout_ns / 1000;
-		if (host->clock)
-			target_timeout += data->timeout_clks / host->clock;
+		if (!data->timeout_ns && (host->quirks2 & SDHCI_QUIRK2_USE_RESERVED_MAX_TIMEOUT) &&
+				(host->clock > 400000)) {
+			return 0xE;
+		} else {
+			target_timeout = data->timeout_ns / 1000;
+			if (host->clock)
+				target_timeout += data->timeout_clks / host->clock;
+		}
 	}
 
 	/*

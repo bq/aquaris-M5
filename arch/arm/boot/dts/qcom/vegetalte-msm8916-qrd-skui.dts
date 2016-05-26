@@ -1,0 +1,168 @@
+/* Copyright (c) 2014, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/dts-v1/;
+
+#include "vegetalte/vegetalte-msm8916-qrd-skui.dtsi"
+#include "vegetalte/vegetalte-msm8916-memory.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. MSM 8916 QRD SKUI";
+	compatible = "qcom,msm8916-qrd-skui", "qcom,msm8916-qrd", "qcom,msm8916", "qcom,qrd";
+	qcom,board-id = <0x1000b 5> , <0x1010b 5> , <0x3010b 5>;
+};
+
+&soc {
+	i2c@78b8000 {
+		smb1360_otg_supply: smb1360-chg-fg@14 {
+			compatible = "qcom,smb1360-chg-fg";
+			reg = <0x14>;
+			interrupt-parent = <&msm_gpio>;
+			interrupts = <62 8>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&smb_int_default>;
+			qcom,chg-inhibit-disabled;
+//			qcom,stat-pulsed-irq;
+		
+    /* battery-profile selection properties */
+			qcom,batt-profile-select;
+			qcom,shdn-after-pwroff;
+			qcom,smb1360-vadc = <&pm8916_vadc>;
+			qcom,batt-id-vref-uv = <1800000>;
+			qcom,batt-id-rpullup-kohm = <100>;
+ 			qcom,profile-a-rid-kohm = <200>;
+			qcom,profile-b-rid-kohm = <102>;
+			qcom,fg-batt-capacity-mah = <2850>;
+			qcom,fg-cc-soc-coeff = <0x81C0>;
+			qcom,fg-delta-soc = <1>;
+			qcom,fg-soc-min = <3>;
+
+			qcom,fg-cutoff-voltage-mv = <3400>;
+			qcom,fg-iterm-ma = <100>;
+			qcom,fg-ibatt-standby-ma = <200>;
+			qcom,fg-cc-to-cv-mv = <4328>;
+			qcom,thermistor-c1-coeff = <0x86C2>;
+
+			qcom,float-voltage-mv = <4350>;
+			qcom,iterm-ma = <100>;
+			qcom,charging-timeout = <768>;
+			qcom,fg-reset-at-pon;
+			qcom,fg-reset-thresold-mv = <200>;
+			qcom,otg-batt-curr-limit = <1500>;
+			qcom,recharge-thresh-mv = <100>;
+			qcom,thermal-mitigation = <1500 700 600 0>;
+			qcom,fg-auto-recharge-soc = <99>;
+			qcom,empty-soc-disabled;
+			regulator-name = "smb1360_otg_vreg";
+			qcom,awake-min-soc;
+			qcom,cfg-current-limited = <1200>;
+
+			qcom,warm-bat-mv = <4100>;
+			qcom,warm-bat-ma = <600>;
+			qcom,cool-bat-ma = <600>;
+			qcom,battery-ovp-supported;
+
+			qcom,otp-hard-jeita-config;
+			qcom,otp-hot-bat-decidegc = <500>;
+			qcom,otp-cold-bat-decidegc = <(-50)>;//<(-150)>;
+		};
+    };
+
+	i2c@78b9000 { /* BLSP1 QUP5 */
+		focaltech@38 {
+			compatible = "focaltech,5x06";
+			reg = <0x38>;
+			interrupt-parent = <&msm_gpio>;
+			interrupts = <13 0x2008>;
+			vdd-supply = <&pm8916_l17>;
+			vcc_i2c-supply = <&pm8916_l6>;
+			/* pins used by touchscreen */
+			pinctrl-names = "pmx_ts_active","pmx_ts_suspend","pmx_ts_release";
+			pinctrl-0 = <&ts_int_active &ts_reset_active>;
+			pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+			pinctrl-2 = <&ts_release>;
+			focaltech,name = "ft6436";
+			focaltech,family-id = <0x36>;
+			focaltech,reset-gpio = <&msm_gpio 12 0x0>;
+			focaltech,irq-gpio = <&msm_gpio 13 0x2008>;
+			focaltech,display-coords = <0 0 720 1280>;
+			focaltech,panel-coords = <0 0 720 1280>;
+			focaltech,button-map= <580 102 158>;
+			focaltech,fw-vkey-support;
+			focaltech,no-force-update;
+			focaltech,i2c-pull-up;
+			focaltech,group-id = <1>;
+			focaltech,hard-reset-delay-ms = <20>;
+			focaltech,soft-reset-delay-ms = <200>;
+			focaltech,num-max-touches = <5>;
+			focaltech,fw-delay-aa-ms = <30>;
+			focaltech,fw-delay-55-ms = <30>;
+			focaltech,fw-upgrade-id1 = <0x79>;
+			focaltech,fw-upgrade-id2 = <0x11>;
+			focaltech,fw-delay-readid-ms = <10>;
+			focaltech,fw-delay-era-flsh-ms = <2000>;
+			focaltech,fw-auto-cal;
+			focaltech,ignore-id-check;
+		};
+	};
+
+	gen-vkeys {
+		compatible = "qcom,gen-vkeys";
+		label = "ft5x06_ts";
+		qcom,disp-maxx = <720>;
+		qcom,disp-maxy = <1280>;
+		qcom,panel-maxx = <720>;
+		qcom,panel-maxy = <1600>;
+		qcom,key-codes = <580 172 158>;
+		qcom,y-offset = <0>;
+	};
+};
+
+&i2c_3{ /* BLSP1 QUP3 */
+                awinic@45 { /* Breath Light-Driven */
+                        /*
+                        led_Imax                                current;         //0=omA, 1=5mA, 2=10mA, 3=15mA,
+                        unsigned int                    rise_time;      //0=0.13s, 1=0.26s, 2=0.52s, 3=1.04s, 4=2.08s, 5=4.16s, 6=8.32s, 7=16.64s
+                        unsigned int                    hold_time;     //0=0.13s, 1=0.26s, 2=0.52s, 3=1.04s, 4=2.08s, 5=4.16s,
+                        unsigned int                    fall_time;       //0=0.13s, 1=0.26s, 2=0.52s, 3=1.04s, 4=2.08s, 5=4.16s, 6=8.32s, 7=16.64s
+                        unsigned int                    off_time;       //0=0.13s, 1=0.26s, 2=0.52s, 3=1.04s, 4=2.08s, 5=4.16s, 6=8.32s, 7=16.64s
+                        unsigned int                    delay_time;   //0=0.0s, 1=0.13s, 2=0.26s, 3=0.52s, 4=1.04s, 5=2.08s, 6=4.16s, 7=8.32s, 8=16.64s
+                        unsigned int                    period_num; //0=unlimited, 1, 2, 3, 4, ......, 15
+                        */
+                        compatible = "awinic,aw2013";
+                        reg = <0x45>;
+                        vdd-supply = <&pm8916_l17>;
+                        vcc_i2c-supply = <&pm8916_l6>;
+                        awinic,ledr-parameter_array = <3 0 3 0 5 0 0>;
+                        awinic,ledg-parameter_array = <3 0 3 0 5 0 0>;
+                        awinic,ledb-parameter_array = <3 0 3 0 5 0 0>;
+                };
+};
+
+&pm8916_chg {
+	status = "ok";
+	qcom,use-external-charger;
+};
+
+&pm8916_bms {
+	status = "ok";
+	qcom,disable-bms;
+};
+
+&usb_otg {
+	qcom,hsusb-otg-mode = <3>;
+	qcom,usbid-gpio = <&msm_gpio 111 0>;
+	qcom,usbid-switch = <&msm_gpio 0 0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&usbid_default>;
+	vbus_otg-supply = <&smb1360_otg_supply>;
+};

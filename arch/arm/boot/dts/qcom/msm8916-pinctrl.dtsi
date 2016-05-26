@@ -433,6 +433,22 @@
 				bias-disable;	      /* No PULL */
 			};
 		};
+		
+		spk_ext_pa {
+			qcom,pins = <&gp 114>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "spk_ext_pa-sw";
+			spk_ext_pa_active: spk_ext_pa_active {
+				drive-strength = <8>;
+				output-low;
+				bias-pull-down;
+			};
+			spk_ext_pa_suspend: spk_ext_pa_suspend {
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
 
 		pmx_i2c_5 {
 			/* CLK, DATA */

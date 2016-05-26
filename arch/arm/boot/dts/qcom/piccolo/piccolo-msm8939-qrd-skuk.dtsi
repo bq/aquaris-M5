@@ -1,0 +1,454 @@
+/* Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include "piccolo-msm8939-qrd.dtsi"
+
+&soc {
+    i2c_1: i2c@78b5000 {
+        wm8998@1a { // Wolfson codec. 
+            compatible = "wlf,wm8998";
+            reg = <0x1a>;
+            //wlf,clk-src = "BBCLK2";
+            //wlf,clk-gpio = <&pm8916_gpios 2 0>;//yht remove
+            clocks = <&clock_rpm clk_bb_clk2>;
+            clock-names = "ref_clk";
+            interrupt-parent = <&msm_gpio>;
+            interrupts = <69 0x2008>;
+            wlf,irq = <&msm_gpio 69 0x2008>;
+            wlf,ldo-enable = <&msm_gpio 28 0>;
+            //wlf,i2c-addr = <&msm_gpio 120 0>;//yht remove, should check code
+            wlf,ena-ldo = <&msm_gpio 114 0>;
+            wlf,reset = <&msm_gpio 120 0>;
+            wlf,clk-gpio = <&msm_gpio 116 0>;//yht add, pay attention for spk and clk, should add in pinctrl?
+            wlf,ldospk   = <&msm_gpio 0 0>;//yht add
+            wlf,init-mic-delay = <500>;//delay time before starting to detect have mic or not
+            pinctrl-names = "wlf_codec_active","wlf_codec_suspend";
+            pinctrl-0 = <&wlf_int_active &wlf_ldo_enable_active 
+             &wlf_ena_ldo_active &wlf_reset_active &wlf_ldospk_active>;
+            pinctrl-1 = <&wlf_int_suspend &wlf_ldo_enable_suspend 
+             &wlf_ena_ldo_suspend &wlf_reset_suspend &wlf_ldospk_suspend>;
+            wlf,irq_base = <700>;
+            AVDD-supply = <&pm8916_l6>;
+            wlf,AVDD-voltage = <1800000 1800000>;
+            wlf,AVDD-current = <25000>;
+            DBVDD1-supply = <&pm8916_l6>;
+            wlf,DBVDD1-voltage = <1800000 1800000>;
+            wlf,DBVDD1-current = <25000>;
+            DBVDD2-supply = <&pm8916_l6>;
+            wlf,DBVDD2-voltage = <1800000 1800000>;
+            wlf,DBVDD2-current = <25000>;
+            DBVDD3-supply = <&pm8916_l6>;
+            wlf,DBVDD3-voltage = <1800000 1800000>;
+            wlf,DBVDD3-current = <25000>;
+            CPVDD-supply = <&pm8916_l6>;
+            wlf,CPVDD-voltage = <1800000 1800000>;
+            wlf,CPVDD-current = <25000>;
+            SPKVDDL-supply = <&pm8916_l6>;
+            wlf,SPKVDDL-voltage = <1800000 1800000>;
+            wlf,SPKVDDL-current = <25000>;
+            SPKVDDR-supply = <&pm8916_l6>;
+            wlf,SPKVDDR-voltage = <1800000 1800000>;
+            wlf,SPKVDDR-current = <25000>;
+            wlf,clk32k_src = <2>;
+            wlf,micd_bias_start_time = <7>;
+            wlf,infinite_micd = <1>;
+            wlf,micd-rate = <6>;
+            wlf,micd-configs = <0x0000 2 1>;
+            wlf,micd-detect-debounce = <500>;
+            wlf,inmode = <0 0 0>;
+            wlf,micbias1 = <2800 1 0 1 0>;
+            wlf,micbias2 = <2800 1 0 1 0>;
+            wlf,micbias3 = <2800 1 0 1 0>;
+            micvdd {
+                regulator-min-microvolt = <3000000>;
+                regulator-max-microvolt = <3000000>;
+            };
+            //wlf,micd-ranges = <>;
+            //wlf,gpio-defaults = <>;
+            //wlf,max-channels-clocked = <>;
+            //wlf,dmic-ref = <>;
+            //wlf,out-mono = <>;
+            //wlf,wm5102t-output-pwr = <>;
+            //wlf,hpdet-ext-res = <>;
+        };
+    };
+
+    i2c_3: i2c@78b7000 { /*BLSP1 QUP3*/
+        awinic@45 { /* Breath Light-Driven */
+            compatible = "awinic,aw2013";
+            reg = <0x45>;
+            vdd-supply = <&pm8916_l17>;
+            vcc_i2c-supply = <&pm8916_l6>;
+            awinic,ledr-parameter_array = <1 0 2 0 3 0 0>;
+            awinic,ledg-parameter_array = <1 0 2 0 3 0 0>;
+            awinic,ledb-parameter_array = <1 0 2 0 3 0 0>;
+        };
+
+        drv2605@5a {/* moto ic */
+            compatible = "ti,drv2605";
+            reg = <0x5a>;
+            drv2605,en= <&msm_gpio 97 0>;
+        };
+
+        ltr@23 { /* Ambient light and proximity sensor */
+            compatible = "ltr,ltr559";
+            reg = <0x23>;
+            pinctrl-names = "default","sleep";
+            pinctrl-0 = <&ltr_default>;
+            pinctrl-1 = <&ltr_sleep>;
+            interrupt-parent = <&msm_gpio>;
+            interrupts = <113 0x2002>;
+            vdd-supply = <&pm8916_l17>;
+            vio-supply = <&pm8916_l5>;
+            liteon,intr = <113>;
+            ltr,irq-gpio = <&msm_gpio 113 0x2002>;
+            ltr,ps-threshold = <15>;
+            ltr,ps-hysteresis-threshold = <10>;
+            ltr,als-polling-time = <200>;
+        };
+
+        bosch@68 { // Gyroscope and accelerometer sensor combo
+            compatible = "bosch,bmi160";
+            reg = <0x68>;
+            vdd-supply = <&pm8916_l17>;
+            vio-supply = <&pm8916_l6>;
+            bosch,place = <2>;
+        };
+
+        akm@d { // Compass sensor
+            compatible = "akm,akm09911";
+            reg = <0x0d>;
+            vdd-supply = <&pm8916_l17>;
+            vio-supply = <&pm8916_l6>;
+            akm,gpio_rstn = <&msm_gpio 1 0>;
+            pinctrl-names = "default","sleep";
+            pinctrl-0 = <&akm09911_default>;
+            pinctrl-1 = <&akm09911_sleep>;
+            akm,place = <2>;
+            akm,auto-report;
+        };
+    };
+
+    i2c@78b9000 { /* BLSP1 QUP5 */
+        atmel@4a{
+            compatible = "atmel,mxt-ts-1";
+            reg = <0x4a>;
+            interrupt-parent = <&msm_gpio>;
+            interrupts = <13 0x2>;
+            vcc_i2c-supply = <&pm8916_l6>;
+            /* pins used by touchscreen */
+            pinctrl-names = "pmx_ts_active","pmx_ts_suspend";
+            pinctrl-0 = <&ts_int_active &ts_reset_active &ts_power_active>;
+            pinctrl-1 = <&ts_int_suspend &ts_reset_suspend &ts_power_suspend>;
+            atmel,family-id = <0x82>;
+            atmel,reset-gpio = <&msm_gpio 12 0x0>;
+            atmel,power_ldo-gpio = <&msm_gpio 78 0x0>;
+            atmel,irq-gpio = <&msm_gpio 13 0x2008>; //IRQF_TRIGGER_LOW
+            atmel,display-coords = <0 0 1080 1920>;
+            atmel,panel-coords = <0 0 1080 1920>;
+            atmel,button-map= <158 102 139>;
+            atmel,no-force-update;
+            atmel,i2c-pull-up;
+        };
+    };
+
+    gen-vkeys {
+        compatible = "qcom,gen-vkeys";
+        label = "ft5x06_ts";
+        qcom,disp-maxx = <1080>;
+        qcom,disp-maxy = <1920>;
+        qcom,panel-maxx = <1080>;
+        qcom,panel-maxy = <2098>;
+        qcom,key-codes = <139 172 158>;
+        qcom,y-offset = <0>;
+    };
+
+    gpio-leds {
+        compatible = "gpio-leds";
+        status = "okay";
+        pinctrl-names = "default";
+        pinctrl-0 = <&button_backlight_off>;
+
+        keypad-backlight {
+            gpios = <&msm_gpio 17 0>;
+            label = "button-backlight";
+            linux,default-trigger = "none";
+        };
+    };
+
+    sound {
+        compatible = "qcom,msm8x16-audio-codec";
+        qcom,model = "msm8939-snd-card-skuk";
+        qcom,msm-snd-card-id = <0>;
+        qcom,msm-codec-type = "internal";
+        qcom,msm-ext-pa = "quaternary";
+        qcom,msm-mbhc-hphl-swh = <1>;
+        qcom,msm-mbhc-gnd-swh = <0>;
+        qcom,msm-micbias1-ext-cap;
+        qcom,msm-hs-micbias-type = "internal";
+        qcom,audio-routing =
+            "IN1AL",  "MICBIAS1",
+            "IN1AR",  "MICBIAS1",
+            "IN2A",  "MICBIAS2";
+
+            /*
+            "RX_BIAS", "MCLK",
+            "SPK_RX_BIAS", "MCLK",
+            "INT_LDO_H", "MCLK",
+            "MIC BIAS External", "Handset Mic",
+            "MIC BIAS Internal2", "Headset Mic",
+            "MIC BIAS External", "Secondary Mic",
+            "AMIC1", "MIC BIAS External",
+            "AMIC2", "MIC BIAS Internal2",
+            "AMIC3", "MIC BIAS External";
+            */
+            pinctrl-names = "cdc_lines_act",
+                                    "cdc_lines_sus",
+                                    "cdc_lines_quat_ext_act",
+                                    "cdc_lines_quat_ext_sus";
+            pinctrl-0 = <&cdc_pdm_lines_act>;
+            pinctrl-1 = <&cdc_pdm_lines_sus>;
+            pinctrl-2 = < &ext_cdc_tlmm_lines_act &cdc_pdm_lines_act>;
+            pinctrl-3 = < &ext_cdc_tlmm_lines_sus &cdc_pdm_lines_sus>;
+
+            asoc-platform = <&pcm0>, <&pcm1>, <&voip>, <&voice>,
+                                    <&loopback>, <&compress>, <&hostless>,
+                                    <&afe>, <&lsm>, <&routing>, <&lpa>;
+            asoc-platform-names = "msm-pcm-dsp.0", "msm-pcm-dsp.1",
+				"msm-voip-dsp", "msm-pcm-voice", "msm-pcm-loopback",
+				"msm-compress-dsp", "msm-pcm-hostless", "msm-pcm-afe",
+				"msm-lsm-client", "msm-pcm-routing", "msm-pcm-lpa";
+            asoc-cpu = <&dai_pri_auxpcm>, <&dai_hdmi>, <&dai_mi2s0>, <&dai_mi2s1>,
+				<&dai_mi2s2>, <&dai_mi2s3>, <&sb_0_rx>, <&sb_0_tx>,
+				<&sb_1_rx>, <&sb_1_tx>, <&sb_3_rx>, <&sb_3_tx>,
+				<&sb_4_rx>, <&sb_4_tx>, <&sb_5_tx>, <&bt_sco_rx>,
+				<&bt_sco_tx>, <&bt_a2dp_rx>,
+				<&int_fm_rx>, <&int_fm_tx>, <&afe_pcm_rx>,
+				<&afe_pcm_tx>, <&afe_proxy_rx>, <&afe_proxy_tx>,
+				<&incall_record_rx>, <&incall_record_tx>, <&incall_music_rx>,
+				<&incall_music_2_rx>;
+            asoc-cpu-names = "msm-dai-q6-auxpcm.1", "msm-dai-q6-hdmi.8", "msm-dai-q6-mi2s.0",
+				"msm-dai-q6-mi2s.1", "msm-dai-q6-mi2s.2",
+				"msm-dai-q6-mi2s.3", "msm-dai-q6-dev.16384",
+				"msm-dai-q6-dev.16385", "msm-dai-q6-dev.16386",
+				"msm-dai-q6-dev.16387", "msm-dai-q6-dev.16390",
+				"msm-dai-q6-dev.16391", "msm-dai-q6-dev.16392",
+				"msm-dai-q6-dev.16393", "msm-dai-q6-dev.16395",
+				"msm-dai-q6-dev.12288", "msm-dai-q6-dev.12289",
+				"msm-dai-q6-dev.12290", "msm-dai-q6-dev.12292",
+				"msm-dai-q6-dev.12293",	"msm-dai-q6-dev.224",
+				"msm-dai-q6-dev.225", "msm-dai-q6-dev.241",
+				"msm-dai-q6-dev.240", "msm-dai-q6-dev.32771",
+				"msm-dai-q6-dev.32772", "msm-dai-q6-dev.32773",
+				"msm-dai-q6-dev.32770";
+            asoc-codec = <&stub_codec>, <&pm8916_tombak_dig>;
+            asoc-codec-names = "msm-stub-codec.1", "tombak_codec";
+        };
+
+        hall_switch {
+            compatible = "hall-switch,och175";
+            pinctrl-names = "hall_active","hall_suspend";
+            pinctrl-0 = <&hall_int_active>;
+            pinctrl-1 = <&hall_int_suspend>;
+            interrupt-parent = <&msm_gpio>;
+            interrupts = <0 20 3>;
+            vdd-supply = <&pm8916_l17>;
+            vio-supply = <&pm8916_l6>;
+            interrupt-names = "hall_irq";
+            hall,irq-gpio = <&msm_gpio 20 0x00>;
+        };
+};
+
+
+&tlmm_pinmux {
+	bma2x2_int1_pin {
+		qcom,pins = <&gp 9>;
+		qcom,num-grp-pins = <1>;
+		label = "bma2x2_int1_pin";
+		bma2x2_int1_default: int1_default {
+			  drive-strength = <6>;
+			  bias-pull-up;
+		};
+		bma2x2_int1_sleep: int1_sleep {
+			  drive-strength = <2>;
+			  bias-pull-down;
+		};
+	};
+
+	bma2x2_int2_pin {
+		qcom,pins = <&gp 36>;
+		qcom,num-grp-pins = <1>;
+		label = "bma2x2_int2_pin";
+		bma2x2_int2_default: int2_default {
+			  drive-strength = <6>;
+			  bias-pull-up;
+		};
+		bma2x2_int2_sleep: int2_sleep {
+			  drive-strength = <2>;
+			  bias-pull-down;
+		};
+	};
+};
+
+&i2c_0 { /* BLSP1 QUP2 */
+    elan@49 { 
+		compatible = "elan,epl2182";
+		reg = <0x49>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&epl2182_default>;
+		interrupt-parent = <&msm_gpio>;
+		interrupts = <113 0x2002>;
+		vdd-supply = <&pm8916_l17>;
+		vio-supply = <&pm8916_l6>;
+		epl2182,irq-gpio = <&msm_gpio 113 0x2002>;
+		epl2182,prox_th_min = <10000>;
+		epl2182,prox_th_max = <12000>;
+	};
+	ktd@30 { /* Breath Light-Driven */
+        compatible = "ktd,ktd2026";
+        reg = <0x30>;
+        vdd-supply = <&pm8916_l17>;
+		vcc_i2c-supply = <&pm8916_l6>;
+		qcom,led-ctrl-gpio = <&pm8916_gpios 3 0>;
+        ktd,ledr-parameter_array = <255 12 500 12 500 0 0>;
+        ktd,ledg-parameter_array = <255 12 500 12 500 0 0>;
+        ktd,ledb-parameter_array = <255 12 500 12 500 0 0>;
+    };
+    
+	/*avago@39 { // Ambient light and proximity sensor 
+		compatible = "avago,apds9930";
+		reg = <0x39>;
+		pinctrl-names = "default","sleep";
+		pinctrl-0 = <&apds99xx_default>;
+		pinctrl-1 = <&apds99xx_sleep>;
+		interrupt-parent = <&msm_gpio>;
+		interrupts = <113 0x2002>;
+		vdd-supply = <&pm8916_l17>;
+		vio-supply = <&pm8916_l6>;
+		avago,irq-gpio = <&msm_gpio 113 0x2002>;
+		avago,ps-threshold = <600>;
+		avago,ps-hysteresis-threshold = <500>;
+		avago,ps-pulse = <8>;
+		avago,ps-pgain = <0>;
+		avago,als-B = <186>;
+		avago,als-C = <75>;
+		avago,als-D = <129>;
+		avago,ga-value = <560>;
+	};
+
+	bosch@18 { // Accelerometer sensor
+		compatible = "bosch,bma2x2";
+		reg = <0x18>;
+		pinctrl-names = "bma_default","bma_sleep";
+		pinctrl-0 = <&bma2x2_int1_default &bma2x2_int2_default>;
+		pinctrl-1 = <&bma2x2_int1_sleep &bma2x2_int2_sleep>;
+		interrupt-parent = <&msm_gpio>;
+		interrupts = <112 0x2002>;
+		vdd-supply = <&pm8916_l17>;
+		vio-supply = <&pm8916_l6>;
+		bosch,init-interval = <200>;
+		bosch,place = <2>;
+		bosch,gpio-int1 = <&msm_gpio 112 0x2002>;
+		bosch,gpio-int2 = <&msm_gpio 114 0x2002>;
+	};
+
+	memsic@30 { // Magnetic field sensor 
+		compatible = "memsic,mmc3416x";
+		reg = <0x30>;
+		vdd-supply = <&pm8916_l17>;
+		vio-supply = <&pm8916_l6>;
+		memsic,dir = "obverse-x-axis-forward";
+		memsic,auto-report;
+	};
+
+	mpu6050@68 { // Gyroscope and accelerometer sensor combo 
+		compatible = "invn,mpu6050";
+		reg = <0x68>;
+		pinctrl-names = "mpu_default","mpu_sleep";
+		pinctrl-0 = <&mpu6050_default>;
+		pinctrl-1 = <&mpu6050_sleep>;
+		interrupt-parent = <&msm_gpio>;
+		interrupts = <115 0x2002>;
+		vdd-supply = <&pm8916_l17>;
+		vlogic-supply = <&pm8916_l16>;
+		vi2c-supply = <&pm8916_l6>;
+		invn,gpio-int = <&msm_gpio 115 0x2002>;
+		invn,place = "Portrait Down Back Side";
+	};*/
+};
+
+&i2c_6 { /*QUP6 i2c@78ba000*/
+    nfc-nci@77 {
+            compatible = "qcom,nfc-nci-bcm";
+            reg = <0x77>;
+
+            qcom,clk-src = "BBCLK2";
+            qcom,clk-gpio = <&pm8916_gpios 2 0>;
+            clocks = <&clock_rpm clk_bb_clk2_pin>;
+            clock-names = "ref_clk";
+			
+            qcom,irq-gpio = <&msm_gpio 97 0x00>;
+            //qcom,dis-gpio = <&msm_gpio 36 0x00>;
+            qcom,wake-gpio = <&msm_gpio 36 0x00>;
+            qcom,en-gpio = <&msm_gpio 109 0x00>;
+            interrupt-parent = <&msm_gpio>;
+            interrupts = <97 0>;
+            interrupt-names = "nfc_irq";
+            pinctrl-names = "nfc_active","nfc_suspend";
+            pinctrl-0 = <&nfc_int_active &nfc_disable_active>;
+            pinctrl-1 = <&nfc_int_suspend &nfc_disable_suspend>;
+    };
+
+};
+
+/*&sdc2_cd_on {
+	/delete-property/ bias-pull-up;
+	bias-pull-down;
+};
+
+&sdc2_cd_off {
+	/delete-property/ bias-disable;
+	bias-pull-down;
+};*/
+
+&sdhc_2 {
+	/*qcom,nonhotplug;
+	interrupts = <0 1>;
+	interrupt-map = <0 &intc 0 125 0
+		1 &intc 0 221 0>;
+	interrupt-names = "hc_irq", "pwr_irq";
+	/delete-property/ cd-gpios;*/
+};
+
+&mdss_mdp {
+	qcom,mdss-pref-prim-intf = "dsi";
+};
+
+&pmx_mdss {
+        qcom,num-grp-pins = <3>;
+        qcom,pins = <&gp 34>, <&gp 25>, <&gp 98>;
+};
+
+&pmx_mdss_te {
+        qcom,num-grp-pins = <1>;
+        qcom,pins = <&gp 24>;
+};
+
+&mdss_dsi0 {
+	pinctrl-names = "mdss_default", "mdss_sleep";
+        pinctrl-0 = <&mdss_dsi_active &mdss_te_active>;
+        pinctrl-1 = <&mdss_dsi_suspend &mdss_te_suspend>;
+
+	qcom,platform-reset-gpio = <&msm_gpio 25 0>;
+        qcom,platform-bklight-en-gpio = <&msm_gpio 98 0>;
+};
+

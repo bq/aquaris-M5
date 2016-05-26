@@ -21,6 +21,34 @@
 #include <linux/of.h>
 #define MAX_SPECIAL_SUPPORT_SIZE 10
 
+/*For camera vendor id*/  
+enum __camera_vendor_module_id{
+	MID_NULL = 0,
+	MID_SUNNY,
+	MID_TRULY,
+	MID_A_KERR,
+	MID_LITEARRAY,
+	MID_DARLING,
+	MID_QTECH,
+	MID_OFILM,
+	MID_HUAQUAN,
+	MID_KINGCOM = MID_HUAQUAN,
+	MID_BOOYI,
+	MID_LAIMU,
+	MID_WDSEN,
+	MID_SUNRISE,
+	MID_PRIMAX = 0x17,
+	MID_MAX
+};
+typedef enum __camera_vendor_module_id camera_vendor_module_id;
+
+struct vendor_eeprom{
+	char eeprom_name[128];
+	uint8_t module_id;
+};
+#define CAMERA_VENDOR_EEPROM_COUNT_MAX		6
+
+
 enum msm_camera_device_type_t {
 	MSM_CAMERA_I2C_DEVICE,
 	MSM_CAMERA_PLATFORM_DEVICE,

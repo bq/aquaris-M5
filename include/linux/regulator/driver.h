@@ -267,6 +267,11 @@ struct regulator_config {
 	int ena_gpio;
 	unsigned int ena_gpio_invert:1;
 	unsigned int ena_gpio_flags;
+#if defined(CONFIG_LCT_WM8998_GPIO_CTRL)
+	int ldo_gpio;
+	unsigned int ldo_gpio_invert:1;
+	unsigned int ldo_gpio_flags;
+#endif
 };
 
 /*

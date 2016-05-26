@@ -214,11 +214,21 @@ struct msm8916_asoc_mach_data {
 	int codec_type;
 	int ext_pa;
 	int us_euro_gpio;
-	int spk_ext_pa_gpio;
+#if defined(CONFIG_SPEAKER_EXT_PA)
+	int spk_ext_pa_gpio_lc;
+	//int spk_hs_switch_gpio;
+	struct delayed_work pa_gpio_work;
+	struct delayed_work pa_gpio_work_close;
+	unsigned char pa_is_on;
+#endif
 	int mclk_freq;
 	int lb_mode;
 	u8 micbias1_cap_mode;
 	u8 micbias2_cap_mode;
+#if defined(CONFIG_AUDIO_CODEC_WM8998_SWITCH)
+	int previous_bias_level;
+	int fll_out;
+#endif
 	atomic_t mclk_rsc_ref;
 	atomic_t mclk_enabled;
 	atomic_t wsa_mclk_rsc_ref;
