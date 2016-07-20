@@ -137,6 +137,8 @@
 			qcom,otp-hard-jeita-config;
 			qcom,otp-hot-bat-decidegc = <500>;
 			qcom,otp-cold-bat-decidegc = <(-50)>;//<(-150)>;
+
+			qcom,report-temp-by-d-work;
 		};
     };
 

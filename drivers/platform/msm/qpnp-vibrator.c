@@ -66,7 +66,7 @@ struct qpnp_vib {
 	int timeout;
 	struct mutex lock;
 };
-#if defined CONFIG_TOUCHSCREEN_ATMEL_MXTS || defined CONFIG_TOUCHSCREEN_HIMAX852X
+#if defined CONFIG_TOUCHSCREEN_ATMEL_MXTS || defined CONFIG_TOUCHSCREEN_HIMAX852X || defined(CONFIG_TOUCHSCREEN_FT5X06)
 struct qpnp_vib *whole_vib;
 #endif
 
@@ -201,7 +201,7 @@ static void qpnp_vib_enable(struct timed_output_dev *dev, int value)
 	mutex_unlock(&vib->lock);
 	schedule_work(&vib->work);
 }
-#if defined CONFIG_TOUCHSCREEN_ATMEL_MXTS || defined CONFIG_TOUCHSCREEN_HIMAX852X
+#if defined CONFIG_TOUCHSCREEN_ATMEL_MXTS || defined CONFIG_TOUCHSCREEN_HIMAX852X || defined(CONFIG_TOUCHSCREEN_FT5X06)
 void qpnp_kernel_vib_enable(int value)
 {
        qpnp_vib_enable(&(whole_vib->timed_dev),value);
@@ -382,7 +382,7 @@ static int qpnp_vibrator_probe(struct spmi_device *spmi)
 	rc = timed_output_dev_register(&vib->timed_dev);
 	if (rc < 0)
 		return rc;
-#if defined CONFIG_TOUCHSCREEN_ATMEL_MXTS || defined CONFIG_TOUCHSCREEN_HIMAX852X
+#if defined CONFIG_TOUCHSCREEN_ATMEL_MXTS || defined CONFIG_TOUCHSCREEN_HIMAX852X || defined(CONFIG_TOUCHSCREEN_FT5X06)
 	whole_vib=vib;
 #endif
 	return rc;

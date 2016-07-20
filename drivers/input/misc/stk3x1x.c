@@ -45,7 +45,7 @@
 //#include <linux/earlysuspend.h>
 #endif
 
-#define DRIVER_VERSION  "3.8.0"
+#define DRIVER_VERSION  "3.8.0 20160601"
 
 /* Driver Settings */
 #define CONFIG_STK_PS_ALS_USE_CHANGE_THRESHOLD
@@ -65,7 +65,7 @@
 //#define STK_GES
 #define QUALCOMM_PLATFORM
 
-#define REPORT_AS_MTK
+//#define REPORT_AS_MTK
 #ifdef  REPORT_AS_MTK
 uint32_t als_level[15] =  {5, 19, 40, 100 ,150, 200, 350, 600, 900, 1200, 1500, 2000, 2364, 4655, 6982};
 uint32_t als_value[16] = {0,10, 40,  65, 90,  145, 225, 300, 550, 930, 1250, 1700, 2600, 5120, 7680, 10240};
@@ -212,6 +212,10 @@ uint32_t als_value[16] = {0,10, 40,  65, 90,  145, 225, 300, 550, 930, 1250, 170
 #define STK_IRC_ALS_NUMERA		5
 #define STK_IRC_ALS_CORREC		850
 
+#define STK_IRS_IT_REDUCE			2
+#define STK_ALS_READ_IRS_IT_REDUCE	5
+#define STK_ALS_THRESHOLD			30
+
 #define DEVICE_NAME		"stk_ps"
 #define ALS_NAME    "light"
 #define PS_NAME     "proximity"
@@ -223,6 +227,11 @@ uint32_t als_value[16] = {0,10, 40,  65, 90,  145, 225, 300, 550, 930, 1250, 170
 	#define STK3X1X_VIO_MIN_UV	1750000
 	#define STK3X1X_VIO_MAX_UV	1950000
 #endif
+
+
+#define STK3310SA_PID		0x17
+#define STK3311SA_PID		0x1E
+#define STK3311WV_PID	0x1D
 
 #ifdef QUALCOMM_PLATFORM
 
@@ -413,6 +422,9 @@ struct stk3x1x_data {
 	#endif
 
 	bool use_fir;
+	uint8_t pid;
+	uint8_t	p_wv_r_bd_with_co;
+	uint32_t als_code_last;
 };
 
 #if( !defined(CONFIG_STK_PS_ALS_USE_CHANGE_THRESHOLD))
@@ -442,7 +454,7 @@ static int32_t stk3x1x_set_ps_thd_l(struct stk3x1x_data *ps_data, uint16_t thd_l
 static int32_t stk3x1x_set_ps_thd_h(struct stk3x1x_data *ps_data, uint16_t thd_h);
 static int32_t stk3x1x_set_als_thd_l(struct stk3x1x_data *ps_data, uint16_t thd_l);
 static int32_t stk3x1x_set_als_thd_h(struct stk3x1x_data *ps_data, uint16_t thd_h);
-static int32_t stk3x1x_get_ir_reading(struct stk3x1x_data *ps_data);
+static int32_t stk3x1x_get_ir_reading(struct stk3x1x_data *ps_data, int32_t als_it_reduce);
 #ifdef STK_TUNE0
 static int stk_ps_tune_zero_func_fae(struct stk3x1x_data *ps_data);
 #endif
@@ -729,11 +741,58 @@ static int32_t stk3x1x_init_all_reg(struct stk3x1x_data *ps_data)
 	return 0;	
 }
 	
+static int32_t stk3x1x_read_otp25(struct stk3x1x_data *ps_data)	
+{
+	int32_t ret, otp25;
+	
+    ret = stk3x1x_i2c_smbus_write_byte_data(ps_data->client, 0x0, 0x2);
+    if (ret < 0)
+    {
+        printk(KERN_ERR "%s: write i2c error\n", __func__);
+        return ret;
+    }	
+	
+    ret = stk3x1x_i2c_smbus_write_byte_data(ps_data->client, 0x90, 0x25);
+    if (ret < 0)
+    {
+        printk(KERN_ERR "%s: write i2c error\n", __func__);
+        return ret;
+    }	
+	
+    ret = stk3x1x_i2c_smbus_write_byte_data(ps_data->client, 0x92, 0x82);
+    if (ret < 0)
+    {
+        printk(KERN_ERR "%s: write i2c error\n", __func__);
+        return ret;
+    }	
+	usleep_range(1000, 5000);
+
+    ret = stk3x1x_i2c_smbus_read_byte_data(ps_data->client,0x91);
+    if (ret < 0)
+    {
+		printk(KERN_ERR "%s: fail, ret=%d\n", __func__, ret);
+        return ret;
+    }
+	otp25 = ret;
+	
+   ret = stk3x1x_i2c_smbus_write_byte_data(ps_data->client, 0x0, 0x0);
+    if (ret < 0)
+    {
+        printk(KERN_ERR "%s: write i2c error\n", __func__);
+        return ret;
+    }
+	printk(KERN_INFO "%s: otp25=0x%x\n", __func__, otp25);
+	if(otp25 & 0x80)
+		return 1;
+	return 0;
+}
 
 static int32_t stk3x1x_check_pid(struct stk3x1x_data *ps_data)
 {
 	unsigned char value[2], pid_msb;
 	int err;
+	
+	ps_data->p_wv_r_bd_with_co = 0;
 	
 	err = stk3x1x_i2c_read_data(ps_data->client, STK_PDT_ID_REG, 2, &value[0]);
 	if(err < 0)
@@ -743,9 +802,18 @@ static int32_t stk3x1x_check_pid(struct stk3x1x_data *ps_data)
 	}
 	
 	//printk(KERN_INFO "%s: PID=0x%x, RID=0x%x\n", __func__, value[0], value[1]);
+	ps_data->pid = value[0];
 	
-	if(value[1] == 0xC0)
-		printk(KERN_INFO "%s: RID=0xC0!!!!!!!!!!!!!\n", __func__);	
+	if(value[0] == STK3311WV_PID)
+		ps_data->p_wv_r_bd_with_co |= 0b100;
+	if(value[1] == 0xC3)
+		ps_data->p_wv_r_bd_with_co |= 0b010;
+		
+	if(stk3x1x_read_otp25(ps_data) == 1)
+	{
+		ps_data->p_wv_r_bd_with_co |= 0b001;
+	}
+	printk(KERN_INFO "%s: p_wv_r_bd_with_co = 0x%x\n", __func__, ps_data->p_wv_r_bd_with_co);	
 		
 	if(value[0] == 0)
 	{
@@ -1354,7 +1422,7 @@ static int32_t stk3x1x_enable_als(struct stk3x1x_data *ps_data, uint8_t enable)
 	#ifdef STK_IRS
 	if(enable && !(ps_data->ps_enabled))
 	{		
-		ret = stk3x1x_get_ir_reading(ps_data);
+		ret = stk3x1x_get_ir_reading(ps_data, STK_IRS_IT_REDUCE	);
 		if(ret > 0)
 			ps_data->ir_code = ret;
 	}		
@@ -1419,13 +1487,14 @@ static int32_t stk3x1x_enable_als(struct stk3x1x_data *ps_data, uint8_t enable)
 
 static int32_t stk3x1x_get_als_reading(struct stk3x1x_data *ps_data)
 {
-    int32_t word_data;
+    int32_t als_data, ir_data = 0;
 #ifdef STK_ALS_FIR
 	int index;   
 	int firlen = atomic_read(&ps_data->firlength);   
 #endif	
 	unsigned char value[2];
 	int ret;
+	//const int ir_enlarge = 1 << (STK_ALS_READ_IRS_IT_REDUCE - STK_IRS_IT_REDUCE);
 	
 	ret = stk3x1x_i2c_read_data(ps_data->client, STK_DATA1_ALS_REG, 2, &value[0]);
 	if(ret < 0)
@@ -1433,13 +1502,39 @@ static int32_t stk3x1x_get_als_reading(struct stk3x1x_data *ps_data)
 		printk(KERN_ERR "%s fail, ret=0x%x", __func__, ret);
 		return ret;
 	}
-	word_data = (value[0]<<8) | value[1];	
+	als_data = (value[0]<<8) | value[1];
+	// printk("%s: raw als_data=%d\n", __func__, als_data);
+	if(ps_data->p_wv_r_bd_with_co & 0b010)
+	{
+		if(als_data < STK_ALS_THRESHOLD && ps_data->als_code_last > 10000)
+		{
+			ir_data = stk3x1x_get_ir_reading(ps_data, STK_ALS_READ_IRS_IT_REDUCE);
+#ifdef STK_IRS				
+		//	if(ir_data > 0)
+		//		ps_data->ir_code = ir_data * ir_enlarge;
+#endif			
+			// printk(KERN_INFO "%s: als_data=%d, als_code_last=%d,ir_data=%d\n", 
+					// __func__, als_data, ps_data->als_code_last, ir_data);	
+			if(ir_data > (STK_ALS_THRESHOLD*3))
+			{
+				als_data = ps_data->als_code_last;
+			}
+		}
+#ifdef STK_IRS			
+		else
+		{
+			ps_data->ir_code = 0;
+		}
+#endif		
+	}
+	
+	ps_data->als_code_last = als_data;
 	
 #ifdef STK_ALS_FIR
 	if(ps_data->fir.number < firlen)
 	{                
-		ps_data->fir.raw[ps_data->fir.number] = word_data;
-		ps_data->fir.sum += word_data;
+		ps_data->fir.raw[ps_data->fir.number] = als_data;
+		ps_data->fir.sum += als_data;
 		ps_data->fir.number++;
 		ps_data->fir.idx++;
 	}
@@ -1447,24 +1542,36 @@ static int32_t stk3x1x_get_als_reading(struct stk3x1x_data *ps_data)
 	{
 		index = ps_data->fir.idx % firlen;
 		ps_data->fir.sum -= ps_data->fir.raw[index];
-		ps_data->fir.raw[index] = word_data;
-		ps_data->fir.sum += word_data;
+		ps_data->fir.raw[index] = als_data;
+		ps_data->fir.sum += als_data;
 		ps_data->fir.idx++;
-		word_data = ps_data->fir.sum/firlen;
+		als_data = ps_data->fir.sum/firlen;
 	}	
 #endif	
 	
-	return word_data;
+	return als_data;
 }
 
-static int32_t stk3x1x_set_irs_it_slp(struct stk3x1x_data *ps_data, uint16_t *slp_time)
+static int32_t stk3x1x_set_irs_it_slp(struct stk3x1x_data *ps_data, uint16_t *slp_time, int32_t ials_it_reduce)
 {
 	uint8_t irs_alsctrl;
 	int32_t ret;
 		
-	irs_alsctrl = (ps_data->alsctrl_reg & 0x0F) - 2;		
+	irs_alsctrl = (ps_data->alsctrl_reg & 0x0F) - ials_it_reduce;
 	switch(irs_alsctrl)
 	{
+		case 2:
+			*slp_time = 1;
+			break;			
+		case 3:
+			*slp_time = 2;
+			break;	
+		case 4:
+			*slp_time = 3;
+			break;	
+		case 5:
+			*slp_time = 6;
+			break;
 		case 6:
 			*slp_time = 12;
 			break;
@@ -1476,6 +1583,9 @@ static int32_t stk3x1x_set_irs_it_slp(struct stk3x1x_data *ps_data, uint16_t *sl
 			break;
 		case 9:
 			*slp_time = 96;			
+			break;				
+		case 10:
+			*slp_time = 192;
 			break;				
 		default:
 			printk(KERN_ERR "%s: unknown ALS IT=0x%x\n", __func__, irs_alsctrl);
@@ -1492,7 +1602,7 @@ static int32_t stk3x1x_set_irs_it_slp(struct stk3x1x_data *ps_data, uint16_t *sl
 	return 0;
 }
 
-static int32_t stk3x1x_get_ir_reading(struct stk3x1x_data *ps_data)
+static int32_t stk3x1x_get_ir_reading(struct stk3x1x_data *ps_data, int32_t als_it_reduce)
 {
     int32_t word_data, ret;
 	uint8_t w_reg, retry = 0;	
@@ -1515,7 +1625,7 @@ static int32_t stk3x1x_get_ir_reading(struct stk3x1x_data *ps_data)
 		//re_enable_ps = true;
 	// }
 	
-	ret = stk3x1x_set_irs_it_slp(ps_data, &irs_slp_time);
+	ret = stk3x1x_set_irs_it_slp(ps_data, &irs_slp_time, als_it_reduce);
 	if(ret < 0)
 		goto irs_err_i2c_rw;
 	
@@ -1696,8 +1806,19 @@ static ssize_t stk_als_code_show(struct device *dev, struct device_attribute *at
 {
 	struct stk3x1x_data *ps_data =  dev_get_drvdata(dev);		
     int32_t reading;
-	
-    reading = stk3x1x_get_als_reading(ps_data);
+#ifdef STK_POLL_ALS	
+	reading = ps_data->als_code_last;
+#else
+	unsigned char value[2];	
+	int ret;
+	ret = stk3x1x_i2c_read_data(ps_data->client, STK_DATA1_ALS_REG, 2, &value[0]);
+	if(ret < 0)
+	{
+		printk(KERN_ERR "%s fail, ret=0x%x", __func__, ret);
+		return ret;
+	}
+	reading = (value[0]<<8) | value[1];	
+#endif	
     return scnprintf(buf, PAGE_SIZE, "%d\n", reading);
 }
 
@@ -1882,7 +2003,7 @@ static ssize_t stk_als_ir_code_show(struct device *dev, struct device_attribute 
 {
 	struct stk3x1x_data *ps_data =  dev_get_drvdata(dev);		
     int32_t reading;
-    reading = stk3x1x_get_ir_reading(ps_data);
+    reading = stk3x1x_get_ir_reading(ps_data, STK_IRS_IT_REDUCE);
     return scnprintf(buf, PAGE_SIZE, "%d\n", reading);	
 }
 
@@ -3038,7 +3159,8 @@ static enum hrtimer_restart stk_als_timer_func(struct hrtimer *timer)
 static void stk_als_poll_work_func(struct work_struct *work)
 {
 	struct stk3x1x_data *ps_data = container_of(work, struct stk3x1x_data, stk_als_work);	
-	int32_t reading, reading_lux, als_comperator, flag_reg;
+	int32_t reading, als_comperator, flag_reg;
+	uint32_t reading_lux;
 	#ifdef STK_IRS	
 	int ret;
 	#endif
@@ -3112,6 +3234,13 @@ static void stk_als_poll_work_func(struct work_struct *work)
 
 		#ifdef  REPORT_AS_MTK
 		reading_lux=stk3x1x_get_als_value(ps_data,reading_lux);
+		#else
+		if(reading_lux<=2)
+			reading_lux = 0;
+		else if(reading_lux<=10)
+			reading_lux = (reading_lux * 40) / 10;
+		else 
+			reading_lux = (reading_lux * 30) / 10;
 		#endif
 		input_report_abs(ps_data->als_input_dev, ABS_MISC, reading_lux);
 		input_sync(ps_data->als_input_dev);
@@ -3384,6 +3513,7 @@ static int32_t stk3x1x_init_all_setting(struct i2c_client *client, struct stk3x1
 	ps_data->als_data_index = 0;
 #endif	
 	ps_data->ps_distance_last = 1;
+	ps_data->als_code_last = 0;
     return 0;
 }
 
@@ -4041,8 +4171,10 @@ static int stk3x1x_probe(struct i2c_client *client,
 	ps_data->als_transmittance = plat_data->transmittance;
 	ps_data->int_pin = plat_data->int_pin;
 	ps_data->pdata = plat_data;
+#ifdef  REPORT_AS_MTK
 	ps_data->als_level_num = sizeof(als_level)/sizeof(als_level[0]);
 	ps_data->als_value_num = sizeof(als_value)/sizeof(als_value[0]);
+#endif 
 	if (ps_data->als_transmittance == 0) {
 		dev_err(&client->dev,
 			"%s: Please set als_transmittance\n", __func__);

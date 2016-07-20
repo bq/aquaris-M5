@@ -464,6 +464,8 @@ struct msm_actuator_tuning_params_t {
 	uint16_t region_size;
 	uint32_t total_steps;
 	struct region_params_t *region_params;
+	enum actuator_initial_position_type initial_position_type; //0:normal bias entry  1:mid entry
+	int16_t start_code; //If there is af otp, it's infinity_dac, else it's 0.
 };
 
 struct park_lens_data_t {
@@ -645,6 +647,8 @@ struct msm_actuator_tuning_params_t32 {
 	uint16_t region_size;
 	uint32_t total_steps;
 	compat_uptr_t region_params;
+	enum actuator_initial_position_type initial_position_type; //0:normal bias entry  1:mid entry
+	int16_t start_code; //If there is af otp, it's infinity_dac, else it's 0.
 };
 
 struct msm_actuator_params_t32 {

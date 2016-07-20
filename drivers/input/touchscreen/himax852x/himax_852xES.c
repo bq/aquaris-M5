@@ -2778,7 +2778,6 @@ static int fb_notifier_callback(struct notifier_block *self,
 
 		case FB_BLANK_POWERDOWN:
 		case FB_BLANK_HSYNC_SUSPEND:
-		case FB_BLANK_VSYNC_SUSPEND:
 			if (event == FB_EARLY_EVENT_BLANK)
 				himax852xes_suspend(&ts->client->dev);
 

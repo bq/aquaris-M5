@@ -32,6 +32,9 @@
 
 #include "clock.h"
 
+int speed_bin = 0;
+int version = 0;
+
 DEFINE_VDD_REGS_INIT(vdd_cpu, 1);
 
 static struct mux_div_clk a7ssmux = {
@@ -361,10 +364,25 @@ static int of_get_clk_src(struct platform_device *pdev, struct clk_src *parents)
 
 static struct platform_device *cpu_clock_a7_dev;
 
+static ssize_t speed_bin_show(struct device *dev, struct device_attribute *attr, char *buf){
+	return scnprintf(buf, PAGE_SIZE, "%d,%d\n", speed_bin, version);
+}
+
+static DEVICE_ATTR(speedbin, S_IRUGO|S_IWUGO, speed_bin_show, NULL);
+
+static struct attribute *clock_a7_attributes[] = {
+	&dev_attr_speedbin.attr,
+	NULL,
+};
+
+static const struct attribute_group clock_a7_attr_group = {
+		.attrs = clock_a7_attributes,
+};
+
 static int clock_a7_probe(struct platform_device *pdev)
 {
 	struct resource *res;
-	int speed_bin = 0, version = 0, rc, cpu;
+	int rc, cpu;
 	unsigned long rate, aux_rate;
 	struct clk *aux_clk, *main_pll;
 	char prop_name[] = "qcom,speedX-bin-vX";
@@ -426,6 +444,7 @@ static int clock_a7_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "Safe voltage plan loaded.\n");
 	}
 
+	rc = sysfs_create_group(&pdev->dev.kobj, &clock_a7_attr_group);
 	rc = of_msm_clock_register(pdev->dev.of_node,
 			clock_tbl_a7, ARRAY_SIZE(clock_tbl_a7));
 	if (rc) {

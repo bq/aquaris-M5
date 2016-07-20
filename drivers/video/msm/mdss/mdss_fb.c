@@ -1173,7 +1173,7 @@ void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 
 	if ((((mdss_fb_is_power_off(mfd) && mfd->dcm_state != DCM_ENTER)
 		|| !mfd->bl_updated) && !IS_CALIB_MODE_BL(mfd)) ||
-		mfd->panel_info->cont_splash_enabled) {
+		(mfd->panel_info->cont_splash_enabled && bkl_lvl == 0)) {
 		mfd->unset_bl_level = bkl_lvl;
 		return;
 	} else {

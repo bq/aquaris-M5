@@ -5452,7 +5452,7 @@ static void msm8x16_wcd_configure_cap(struct snd_soc_codec *codec,
 				MSM8X16_WCD_A_ANALOG_MICB_1_EN,
 				0x40, (MICBIAS_NO_EXT_BYP_CAP << 6));
 	} else if (micbias2) {
-#if  defined(CONFIG_PICMT_COMMON)
+#if  defined(CONFIG_PICMT_COMMON) || defined(CONFIG_VEGETALTE_COMMON) 
 		snd_soc_update_bits(codec, MSM8X16_WCD_A_ANALOG_MICB_1_EN,
 				0x40, (1 << 6));
 #else

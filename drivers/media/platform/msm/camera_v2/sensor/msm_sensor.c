@@ -1324,6 +1324,11 @@ int msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp)
 	return rc;
 }
 
+#ifdef  CONFIG_VEGETALTE_COMMON
+extern uint8_t g_imx214_module_id;
+extern uint8_t g_af_driver_ic_id;
+#endif
+
 int msm_sensor_check_id(struct msm_sensor_ctrl_t *s_ctrl)
 {
 	int rc;
@@ -1332,6 +1337,26 @@ int msm_sensor_check_id(struct msm_sensor_ctrl_t *s_ctrl)
 		rc = s_ctrl->func_tbl->sensor_match_id(s_ctrl);
 	else
 		rc = msm_sensor_match_id(s_ctrl);
+
+#ifdef  CONFIG_VEGETALTE_COMMON
+	if((rc == 0)
+            && (s_ctrl->sensordata->sensor_name != NULL)
+            && ((strcmp(s_ctrl->sensordata->sensor_name, "imx214_8916_cm9886qr") == 0)
+                 || (strcmp(s_ctrl->sensordata->sensor_name, "imx214_cma846") == 0))) {
+
+		if((strcmp(s_ctrl->sensordata->sensor_name,"imx214_8916_cm9886qr") == 0)
+		   && (g_imx214_module_id == 0x2) && (g_af_driver_ic_id == 0x02)){ // ADI driver IC 
+			pr_err("%s:it is imx214_8916_cm9886qr\n", __func__);
+		} else if((strcmp(s_ctrl->sensordata->sensor_name,"imx214_cma846") == 0)
+		   && (g_imx214_module_id == 0x2) && (g_af_driver_ic_id == 0x01)){ // DW driver IC
+			pr_err("%s:it is imx214_cma846\n", __func__);
+		} else {
+                        pr_err("%s:it is not support imx214 s_ctrl->sensordata->sensor_name =%s\n", __func__,s_ctrl->sensordata->sensor_name);
+                        rc = -ENODEV;
+                }
+	}
+#endif
+
 	if (rc < 0)
 		pr_err("%s:%d match id failed rc %d\n", __func__, __LINE__, rc);
 	return rc;

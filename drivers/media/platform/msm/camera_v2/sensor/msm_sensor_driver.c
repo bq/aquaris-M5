@@ -646,7 +646,9 @@ extern struct vendor_eeprom s_vendor_eeprom[CAMERA_VENDOR_EEPROM_COUNT_MAX];
 int32_t msm_sensor_driver_probe(void *setting,
 	struct msm_sensor_info_t *probed_info, char *entity_name)
 {
+#ifndef  CONFIG_VEGETALTE_COMMON
 	uint8_t                              i = 0;
+#endif
 	int32_t                              rc = 0;
 	struct msm_sensor_ctrl_t            *s_ctrl = NULL;
 	struct msm_camera_cci_client        *cci_client = NULL;
@@ -727,6 +729,7 @@ int32_t msm_sensor_driver_probe(void *setting,
 		}
 	}
 
+#ifndef  CONFIG_VEGETALTE_COMMON
 	pr_info("%s camera eeprom_name=%s\n",__func__, slave_info->eeprom_name);//slave_info is from userspace
 	for(i=0; i<CAMERA_VENDOR_EEPROM_COUNT_MAX; i++){
 		CDBG("dtsi eeprom_name[%d]=%s, module_id=%d\n",i,s_vendor_eeprom[i].eeprom_name, s_vendor_eeprom[i].module_id);//s_vendor_eeprom is from kernel camera dtsi
@@ -748,6 +751,7 @@ int32_t msm_sensor_driver_probe(void *setting,
 		rc = -EFAULT;
 		goto free_slave_info;
 	}
+#endif
 
 	/* Print slave info */
 	CDBG("camera id %d", slave_info->camera_id);

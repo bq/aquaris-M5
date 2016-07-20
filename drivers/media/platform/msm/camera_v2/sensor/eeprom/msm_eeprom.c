@@ -924,6 +924,7 @@ static long msm_eeprom_subdev_fops_ioctl32(struct file *file, unsigned int cmd,
 
 #endif
 
+#ifndef  CONFIG_VEGETALTE_COMMON
 static camera_vendor_module_id imx214_get_otp_vendor_module_id(struct msm_eeprom_ctrl_t *e_ctrl)
 {
 	int pageIndex = 0;
@@ -998,7 +999,8 @@ static uint8_t get_otp_vendor_module_id(struct msm_eeprom_ctrl_t *e_ctrl, const 
 	if((strcmp(eeprom_name, "imx214_olqba15") == 0)
 		|| (strcmp(eeprom_name, "imx214_f13n05e") == 0)
 		|| (strcmp(eeprom_name, "imx214_f13n05k") == 0)
-		|| (strcmp(eeprom_name, "imx214_olqba22") == 0)){
+		|| (strcmp(eeprom_name, "imx214_olqba22") == 0)
+		|| (strcmp(eeprom_name, "imx214_cma846") == 0)){
 		module_id = imx214_get_otp_vendor_module_id(e_ctrl);
 	}else if(strcmp(eeprom_name,"s5k5e2_olq5f24") == 0
 		|| (strcmp(eeprom_name, "s5k5e2_s7b5") == 0)){
@@ -1009,6 +1011,45 @@ static uint8_t get_otp_vendor_module_id(struct msm_eeprom_ctrl_t *e_ctrl, const 
 
 	return ((uint8_t)module_id);
 }
+#endif
+
+#ifdef CONFIG_VEGETALTE_COMMON
+uint8_t g_imx214_module_id = 0;
+uint8_t g_af_driver_ic_id = 0;
+
+void imx214_set_otp_module_id(struct msm_eeprom_ctrl_t *e_ctrl)
+{
+	int pageIndex = 0;
+	uint8_t mid;
+	uint8_t wb_flag;
+	uint8_t PageCount = 64;
+	uint8_t *buffer = e_ctrl->cal_data.mapdata;
+
+	for (pageIndex=0; pageIndex<3; pageIndex++) {
+		mid = buffer[1+PageCount*pageIndex];
+		CDBG("%s mid=%x\n", __func__,mid);
+		if(mid == MID_TRULY) { //imx214 truly
+			wb_flag = buffer[63 + PageCount*pageIndex];
+			CDBG("%s truly wb_flag=%x\n", __func__,wb_flag);
+
+			if(wb_flag == 0x00) {
+				CDBG("imx214_set_otp_module_id imx214 truly module \n");
+				g_imx214_module_id = mid;
+				if(	((buffer[2+PageCount*pageIndex] == 15) && (buffer[3+PageCount*pageIndex] >= 0x09))
+					|| (buffer[2+PageCount*pageIndex] > 15) ) // after 201509
+					g_af_driver_ic_id = 0x01;  // for 846
+				else
+					g_af_driver_ic_id = 0x02;  // cm9886
+				CDBG("imx214_truly module driver id 0x%02x\n", g_af_driver_ic_id);	
+				break;
+			}
+		}
+	}
+	
+	if(pageIndex >= 3)
+		pr_err("imx214_set_otp_module_id unknown imx214 module \n");
+}
+#endif
 
 static int msm_eeprom_platform_probe(struct platform_device *pdev)
 {
@@ -1140,11 +1181,22 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 	for (j = 0; j < e_ctrl->cal_data.num_data; j++)
 		CDBG("memory_data[%d] = 0x%X\n", j,
 			e_ctrl->cal_data.mapdata[j]);
+#ifndef  CONFIG_VEGETALTE_COMMON
 	if(eb_info->eeprom_name != NULL){
 		s_vendor_eeprom[pdev->id].module_id = get_otp_vendor_module_id(e_ctrl, eb_info->eeprom_name);
 		strcpy(s_vendor_eeprom[pdev->id].eeprom_name, eb_info->eeprom_name);
 	}
-
+#endif
+#ifdef CONFIG_VEGETALTE_COMMON
+	if( (eb_info->eeprom_name != NULL)
+                && (   (strcmp(eb_info->eeprom_name, "truly_cm9886qr") == 0)
+                        || (strcmp(eb_info->eeprom_name, "imx214_cma846") == 0)
+                ) )
+        {
+                CDBG("imx214 name = %s\n",eb_info->eeprom_name);
+                imx214_set_otp_module_id(e_ctrl);
+        }
+#endif
 	e_ctrl->is_supported |= msm_eeprom_match_crc(&e_ctrl->cal_data);
 
 	rc = msm_camera_power_down(power_info, e_ctrl->eeprom_device_type,

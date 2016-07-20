@@ -4174,6 +4174,11 @@ static irqreturn_t msm_otg_irq(int irq, void *data)
 	return ret;
 }
 
+#ifdef CONFIG_TOUCHSCREEN_FT5X06
+extern struct work_struct usbdetect_on;
+extern struct work_struct usbdetect_off;
+#endif
+
 static void msm_otg_set_vbus_state(int online)
 {
 	struct msm_otg *motg = the_msm_otg;
@@ -4183,12 +4188,18 @@ static void msm_otg_set_vbus_state(int online)
 		pr_debug("PMIC: BSV set\n");
 		msm_otg_dbg_log_event(&motg->phy, "PMIC: BSV SET",
 				init, motg->inputs);
+#ifdef CONFIG_TOUCHSCREEN_FT5X06
+		schedule_work(&usbdetect_on);
+#endif
 		if (test_and_set_bit(B_SESS_VLD, &motg->inputs) && init)
 			return;
 	} else {
 		pr_debug("PMIC: BSV clear\n");
 		msm_otg_dbg_log_event(&motg->phy, "PMIC: BSV CLEAR",
 				init, motg->inputs);
+#ifdef CONFIG_TOUCHSCREEN_FT5X06
+		schedule_work(&usbdetect_off);
+#endif
 		if (!test_and_clear_bit(B_SESS_VLD, &motg->inputs) && init)
 			return;
 	}

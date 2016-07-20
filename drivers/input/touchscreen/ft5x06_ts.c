@@ -376,6 +376,8 @@ static void ft5x06_update_fw_ver(struct ft5x06_ts_data *data)
 }
 
 #ifdef CONFIG_FTS_GESTURE
+extern void qpnp_kernel_vib_enable(int value);
+extern int stk_ps_enable_for_double_tap(void);
 
 static void ft5x06_gesture_change_state(unsigned long lparam)
 {
@@ -396,6 +398,8 @@ static void ft5x06_read_gesture_data(struct ft5x06_ts_data *data)
 
 	if(ft5x06_gesture_state == 1)
 		return;
+	if(stk_ps_enable_for_double_tap())
+		return;
 	buf[0] = FT_GESTURE_OUTPUT_ADRESS;
 	ret = ft5x06_i2c_read(data->client, buf, 1, buf, FT_GESTRUE_POINTS_HEADER);
 	if (ret < 0)
@@ -408,6 +412,7 @@ static void ft5x06_read_gesture_data(struct ft5x06_ts_data *data)
 		input_event(data->input_dev,EV_KEY,116,1);
 		input_event(data->input_dev,EV_KEY,116,0);
 		input_sync(data->input_dev);
+		qpnp_kernel_vib_enable(50);
 		printk(KERN_ERR "%s %d gesture report power key OK\n",__func__,__LINE__);
 	}
 	ft5x06_gesture_init_temer();

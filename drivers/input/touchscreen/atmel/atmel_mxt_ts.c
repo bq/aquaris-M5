@@ -6470,7 +6470,10 @@ static int fb_notifier_callback(struct notifier_block *self,
 	if (evdata && evdata->data && event == FB_EVENT_BLANK &&
 				mxt && mxt->client) {
 			blank = evdata->data;
-			if (*blank == FB_BLANK_UNBLANK || *blank == FB_BLANK_NORMAL) {
+			pr_info("%s: blank=%d\n", __func__, *blank);
+			if (*blank == FB_BLANK_UNBLANK ||
+				*blank == FB_BLANK_NORMAL ||
+				*blank == FB_BLANK_VSYNC_SUSPEND) {
 				if (mxt_resume(&mxt->client->dev) != 0)
 					dev_err(&mxt->client->dev, "%s: failed\n", __func__);
 			}else if (*blank == FB_BLANK_POWERDOWN) {

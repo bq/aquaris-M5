@@ -332,6 +332,7 @@ struct smb1360_chip {
 	u8				soft_cold_rt_stat;
 	struct delayed_work		jeita_work;
 	struct delayed_work		delayed_init_work;
+	struct delayed_work		temp_report_work;
 	unsigned short			default_i2c_addr;
 	unsigned short			fg_i2c_addr;
 	bool				pulsed_irq;
@@ -420,6 +421,7 @@ struct smb1360_chip {
 	bool				irq_disabled;
 	bool				empty_soc;
 	bool				awake_min_soc;
+	bool				report_temp_by_d_work;
 	int				workaround_flags;
 	u8				irq_cfg_mask[3];
 	int				usb_psy_ma;
@@ -2196,6 +2198,35 @@ static int smb1360_battery_get_property(struct power_supply *psy,
 		return -EINVAL;
 	}
 	return 0;
+}
+
+#define TEMP_REPORT_DELAY_MS	60000
+static void bq_temp_report_work(struct work_struct *work)
+{
+       struct smb1360_chip *chip = container_of(work, struct smb1360_chip,
+                                                        temp_report_work.work);
+	int rc = 0;
+	int temp = 240;
+	static int reported_temp = 250;
+	union power_supply_propval prop = {0,};
+
+	rc = chip->batt_psy.get_property(&chip->batt_psy,
+						POWER_SUPPLY_PROP_TEMP, &prop);
+	if (rc == 0)
+		temp = prop.intval;
+        else
+		goto reschedule;
+
+	if (abs(temp - reported_temp) >= 10) {
+		power_supply_changed(&chip->batt_psy);
+		reported_temp = temp;
+                pr_info("reported_temp = %d\n", reported_temp);
+	}
+
+reschedule:
+	schedule_delayed_work(&chip->temp_report_work,
+					msecs_to_jiffies(TEMP_REPORT_DELAY_MS));
+	return;
 }
 
 static void smb1360_external_power_changed(struct power_supply *psy)
@@ -5239,6 +5270,8 @@ static int smb_parse_dt(struct smb1360_chip *chip)
 	if (rc < 0)
 		chip->fg_auto_recharge_soc = -EINVAL;
 
+	chip->report_temp_by_d_work = of_property_read_bool(node,
+						"qcom,report-temp-by-d-work");
 	if (of_property_read_bool(node, "qcom,fg-reset-at-pon")) {
 		chip->fg_reset_at_pon = true;
 		rc = of_property_read_u32(node, "qcom,fg-reset-thresold-mv",
@@ -5290,6 +5323,7 @@ static int smb1360_probe(struct i2c_client *client,
 	INIT_DELAYED_WORK(&chip->jeita_work, smb1360_jeita_work_fn);
 	INIT_DELAYED_WORK(&chip->delayed_init_work,
 			smb1360_delayed_init_work_fn);
+	INIT_DELAYED_WORK(&chip->temp_report_work, bq_temp_report_work);
 	init_completion(&chip->fg_mem_access_granted);
 	
 
@@ -5528,6 +5562,10 @@ static int smb1360_probe(struct i2c_client *client,
 				"Couldn't create count debug file rc = %d\n",
 				rc);
 	}
+
+	if(chip->report_temp_by_d_work)
+		schedule_delayed_work(&chip->temp_report_work,
+					msecs_to_jiffies(TEMP_REPORT_DELAY_MS));
 
 	dev_info(chip->dev, "SMB1360 revision=0x%x probe success! batt=%d usb=%d soc=%d\n",
 			chip->revision,

@@ -21,6 +21,7 @@
 #include <linux/pm.h>
 #include <linux/regulator/consumer.h>
 
+#define debug 			0
 #define AW2013_REG_RSTR		0x00
 #define AW2013_REG_GCR			0x01
 #define AW2013_REG_LEDE			0x30
@@ -32,6 +33,8 @@
 
 
 #if defined(CONFIG_VEGETALTE_COMMON)
+
+
 enum led_colors {
 	BLUE,
 	GREEN,
@@ -328,19 +331,105 @@ static enum led_brightness aw2013_get_ledb_brightness(struct led_classdev *led_c
 	return led->cdev_ledb.brightness;
 }
 
+static u8 aw2013_get_level(int time)
+{
+	int level = -1;
+	if (time < 150)
+		level = 0;
+	else if (time < 260)
+		level = 1;
+	else if (time < 520)
+		level = 2;
+	else if (time < 1020)
+		level = 3;
+	else if (time < 2080)
+		level = 4;
+	else if (time < 4160)
+		level = 5;
+	else if (time < 8320)
+		level = 6;
+	else 
+		level = 7;
+
+	if (level > 0)
+		level = level -1;
+	
+	return level;
+}
+
+static u8 aw2013_get_imax_level(int imax)
+{
+	int level = 0;
+	if (imax < 5)
+		level = 0;
+	else if (imax < 65)
+		level = 1;
+	else if (imax < 129)
+		level = 2;
+	else 
+		level = 3;
+
+	return level;
+}
+
 static int aw2013_set_led_blink(struct aw2013_led *led, enum led_colors color,
 								unsigned int rising_time, unsigned int hold_time,
 								unsigned int falling_time, unsigned int off_time,
-								unsigned int delay_time, unsigned int period_num)
+								unsigned int delay_time, unsigned int period_num,
+								unsigned int brightness)
 {
 	int ret = 0;
+	u8 period = 0;
+	u8 state_led = 0x00;
+	u8 rising_level, falling_level, hold_level, off_level, delay_level, brightness_level;
+	u8 value;
 
-	ret = aw2013_write_reg(led->client, AW2013_REG_LCFG+color, (u8)(0x70 |led->pdata[color].led_current));  //mod=flash
-	ret |= aw2013_write_reg(led->client, AW2013_REG_PWM_LEVEL+color, 255);
-	ret |= aw2013_write_reg(led->client, AW2013_REG_T0+color*3, (u8)((rising_time<<3) |hold_time));
-	ret |= aw2013_write_reg(led->client, AW2013_REG_T1+color*3, (u8)((falling_time<<3) |off_time));
-	ret |= aw2013_write_reg(led->client, AW2013_REG_T2+color*3, (u8)((delay_time<<4) |period_num));
-	ret |= aw2013_turn_on_led(led, color);
+	state_led = aw2013_read_reg(led->client, AW2013_REG_LEDE);
+	ret = aw2013_write_reg(led->client, AW2013_REG_LEDE, state_led & 0xf8);
+
+//	aw2013_set_led_brightness(led, color, brightness);
+	
+	rising_level = aw2013_get_level(rising_time);
+	hold_level = aw2013_get_level(hold_time);
+	falling_level = aw2013_get_level(falling_time);
+	off_level = aw2013_get_level(off_time);
+	delay_level = aw2013_get_level(delay_time);
+	period = period_num & 0xf;
+	if (brightness > 10 && brightness < 250)
+	{
+		rising_level += 1;
+		value = 127;
+		falling_level += 1;
+	}
+ 	else if (255 == brightness)
+ 	{
+ 		value = 254;
+ 	}
+	
+	ret |= aw2013_write_reg(led->client, AW2013_REG_PWM_LEVEL+color, (u8)value);
+	
+	/* Limit maximum Current to MAX_BRIGHT_CURR */
+	brightness_level = aw2013_get_imax_level(brightness);
+
+	if(debug)
+ 	{
+		printk(KERN_ERR " %s  led->cdev_ledr.brightness  %d  led->cdev_ledg.brightness  %d  led->cdev_ledb.brightness %d \n", 
+			__func__,  led->cdev_ledr.brightness,  led->cdev_ledg.brightness,  led->cdev_ledb.brightness );
+			printk(KERN_ERR "%s color %d  rising_time %d hold_time %d falling_time %d off_time %d delay_time %d period_num %d\n", 
+			__func__, color, rising_time, hold_time, falling_time, off_time, delay_time, period_num);
+	}
+	
+	ret |= aw2013_write_reg(led->client, AW2013_REG_LCFG+color, (0x1 << 4) | brightness_level);  //mod=flash
+
+	//ret |= aw2013_write_reg(led->client, AW2013_REG_PWM_LEVEL+color*3, (u8)brightness);
+
+	ret |= aw2013_write_reg(led->client, AW2013_REG_T0+color*3, (u8)((rising_level <<4) |hold_level));
+	ret |= aw2013_write_reg(led->client, AW2013_REG_T1+color*3, (u8)((falling_level <<4) |off_level));
+	ret |= aw2013_write_reg(led->client, AW2013_REG_T2+color*3, (u8)((delay_level <<4) |period));
+
+	//ret = aw2013_write_reg(led->client, AW2013_REG_LEDE, 0x1<<color);
+	ret = aw2013_write_reg(led->client, AW2013_REG_LEDE, (u8)(state_led |  (1<<color)));
+	usleep(5);
 	return ret;
 }
 
@@ -452,87 +541,82 @@ static ssize_t blink_store(struct device *dev,
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct aw2013_led *led;
-	unsigned long blinking;
-	unsigned int hold_time = 2;
+	unsigned int value;
+	unsigned int ontime = 2;
+	unsigned int offtime = 2;
+	unsigned int rise_time;
+	unsigned int fall_time;
+
 	ssize_t ret = -EINVAL;
 
-	ret = kstrtoul(buf, 10, &blinking);
-	if (ret)
+	if (sscanf(buf,"%d %d %d",&value,&ontime,&offtime) < 0) {
+		dev_err(led_cdev->dev, "%s fail\n", __FUNCTION__);
 		return ret;
-//	printk("%s  led_cdev->name %s blinking %ld \n", __func__, led_cdev->name, blinking);
-
-	if(blinking > 400)
-	{
-		hold_time =  (blinking+10)/500 -1;
 	}
+//	printk(" led %s  led_cdev->name: %s value :%d, ontime :%d,, offtime :%d,\n", __func__, led_cdev->name, value, ontime, offtime);
+
+   if (ontime > offtime)
+        rise_time = fall_time = offtime / 2;
+    else
+        rise_time = fall_time = ontime / 2;
+
+	if(debug)
+ 	{
+		printk(KERN_ERR "%s  rise_time:%d fall_time:%d \n", __func__, rise_time, fall_time);
+	}
+
 
 //	printk("%s  hold_time %d \n", __func__, hold_time);
 
 	if(!strcmp(led_cdev->name,"red")){
 		led = container_of(led_cdev, struct aw2013_led, cdev_ledr);
-		if(!blinking){
+		if(!value){
 			led->state_ledr = AW2013_OFF;
 			cancel_delayed_work(&led->work_ledr);
 			aw2013_turn_off_led(led,RED);
 		}else{
-			if(0){
+		
 				led->state_ledr = AW2013_BLINK;
-				schedule_delayed_work(&led->work_ledr, msecs_to_jiffies(10));
-			}
-			if(led->state_ledr != AW2013_BLINK){
-			led->state_ledr = AW2013_BLINK;
+				
 			ret = aw2013_set_led_blink(led,RED,
-							led->pdata[RED].rise_time,
-							hold_time, /*led->pdata[RED].hold_time,*/
-							led->pdata[RED].fall_time,
-							hold_time, /*led->pdata[RED].off_time,*/
+							rise_time,/*led->pdata[RED].rise_time,*/
+							ontime, /*led->pdata[RED].hold_time,*/
+							fall_time,/*led->pdata[RED].fall_time,*/
+							offtime,
 							led->pdata[RED].delay_time,
-							led->pdata[RED].period_num);
-			}
+							led->pdata[RED].period_num, value);
 		}
 	}else if(!strcmp(led_cdev->name,"green")){
 		led = container_of(led_cdev, struct aw2013_led, cdev_ledg);
-		if(!blinking){
+		if(!value){
 			led->state_ledg = AW2013_OFF;
 			cancel_delayed_work(&led->work_ledg);
 			aw2013_turn_off_led(led,GREEN);
 		}else{
-			if(0){
 				led->state_ledg = AW2013_BLINK;
-				schedule_delayed_work(&led->work_ledg, msecs_to_jiffies(10));
-			}
-            if(led->state_ledg != AW2013_BLINK){
-			led->state_ledg = AW2013_BLINK;
 			ret = aw2013_set_led_blink(led,GREEN,
-							led->pdata[GREEN].rise_time,
-							hold_time, /*led->pdata[GREEN].hold_time,*/
-							led->pdata[GREEN].fall_time,
-							hold_time, /*led->pdata[GREEN].off_time,*/
+							rise_time, /*led->pdata[GREEN].rise_time,*/
+							ontime, /*led->pdata[GREEN].hold_time,*/
+							fall_time, /*led->pdata[GREEN].fall_time,*/
+							offtime, /*led->pdata[GREEN].off_time,*/
 							led->pdata[GREEN].delay_time,
-							led->pdata[GREEN].period_num);
-			}
+							led->pdata[GREEN].period_num, value);
 		}
 	}else if(!strcmp(led_cdev->name,"blue")){
 		led = container_of(led_cdev, struct aw2013_led, cdev_ledb);
-		if(!blinking){
+		if(!value){
 			led->state_ledb = AW2013_OFF;
 			cancel_delayed_work(&led->work_ledb);
 			aw2013_turn_off_led(led,GREEN);
 		}else{
-			if(0){
 				led->state_ledb = AW2013_BLINK;
-				schedule_delayed_work(&led->work_ledb, msecs_to_jiffies(10));
-			}
-            if(led->state_ledb != AW2013_BLINK){
-			led->state_ledb = AW2013_BLINK;
 			ret = aw2013_set_led_blink(led,BLUE,
-							led->pdata[BLUE].rise_time,
-							hold_time, /*led->pdata[BLUE].hold_time,*/
-							led->pdata[BLUE].fall_time,
-							hold_time, /*led->pdata[BLUE].off_time,*/
+							rise_time, /*led->pdata[BLUE].rise_time,*/
+							ontime, /*led->pdata[BLUE].hold_time,*/
+							fall_time, /*led->pdata[BLUE].fall_time,*/
+							offtime, /*led->pdata[BLUE].off_time,*/
 							led->pdata[BLUE].delay_time,
-							led->pdata[BLUE].period_num);
-			}
+							led->pdata[BLUE].period_num, value);
 		}
 	}else{
 		pr_err("%s invalid led color!\n",__func__);

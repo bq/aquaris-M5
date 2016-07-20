@@ -542,19 +542,31 @@ static void mdss_dsi_panel_switch_mode(struct mdss_panel_data *pdata,
 	return;
 }
 
+struct mdss_dsi_ctrl_pdata *w_reg;
+
+#ifdef CONFIG_FTS_GESTURE
+extern int ft5x06_gesture_open_export(void);
+extern int ft5x06_gesture_close_export(void);
+#endif
+
 static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 							u32 bl_level)
 {
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	struct mdss_dsi_ctrl_pdata *sctrl = NULL;
-
+   	static u32 old_bl_level=0;
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
 		return;
 	}
-
+	
+	if (!mdss_panel_get_boot_cfg() ) 	{
+		bl_level = 0;	
+	}
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
+	
+	w_reg=ctrl_pdata;
 
 	/*
 	 * Some backlight controllers specify a minimum duty cycle
@@ -565,6 +577,23 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 	if ((bl_level < pdata->panel_info.bl_min) && (bl_level != 0))
 		bl_level = pdata->panel_info.bl_min;
 
+	if(bl_level==0 || (old_bl_level==0 && bl_level!=0)){
+		pr_info("%s, bl_level=%d\n",__func__,bl_level);
+	}
+
+#ifdef CONFIG_TOUCHSCREEN_FT5X06
+	if(old_bl_level==0 && bl_level != 0)
+	{
+		msleep(68);
+	}
+#endif
+#ifdef CONFIG_FTS_GESTURE
+	if(old_bl_level==0 && bl_level != 0)
+	{
+		ft5x06_gesture_close_export();
+	}
+#endif
+	
 	switch (ctrl_pdata->bklt_ctrl) {
 	case BL_WLED:
 		led_trigger_event(bl_led_trigger, bl_level);
@@ -601,6 +630,7 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 			__func__);
 		break;
 	}
+	old_bl_level = bl_level;
 }
 
 static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)

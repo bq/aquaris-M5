@@ -26,6 +26,10 @@
 #define WCD_MONO_HS_MIN_THR	2
 #define WCD_MBHC_STRINGIFY(s)  __stringify(s)
 
+#ifdef CONFIG_FB
+#define WCD_MBHC_HS_WAKEUP
+#endif
+
 struct wcd_mbhc;
 enum wcd_mbhc_register_function {
 	WCD_MBHC_L_DET_EN,
@@ -379,6 +383,12 @@ struct wcd_mbhc {
 	bool is_extn_cable;
 	bool skip_imped_detection;
 	bool is_btn_already_regd;
+
+#ifdef WCD_MBHC_HS_WAKEUP
+	bool fb_off;
+	spinlock_t fb_lock;
+	struct notifier_block fb_notif;
+#endif
 
 	struct snd_soc_codec *codec;
 	/* Work to perform MBHC Firmware Read */
