@@ -5711,6 +5711,14 @@ static void smb1360_shutdown(struct i2c_client *client)
 	if (rc)
 		pr_err("Couldn't disable OTG mode rc=%d\n", rc);
 
+	/* Clear OV - disable and enable charging */
+	rc = smb1360_charging_disable(chip, BATT_OV, true);
+	if (rc)
+		pr_err("Disable charging(BATT_OV) failed rc=%d\n", rc);
+	rc = smb1360_charging_disable(chip, BATT_OV, false);
+	if (rc)
+		pr_err("Enable charging(BATT_OV) failed rc=%d\n", rc);
+
 	if (chip->shdn_after_pwroff) {
 		rc = smb1360_poweroff(chip);
 		if (rc)

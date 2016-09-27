@@ -269,7 +269,7 @@
 		};
 };
 
-&sdc2_cd_on {
+/*&sdc2_cd_on {
 	/delete-property/ bias-pull-up;
 	bias-pull-down;
 };
@@ -277,13 +277,14 @@
 &sdc2_cd_off {
 	/delete-property/ bias-disable;
 	bias-pull-down;
-};
+};*/
 
 &sdhc_2 {
-	interrupts = <0 1>;
+	cd-gpios = <&msm_gpio 38 0x1>;
+	/*interrupts = <0 1>;
 	interrupt-map = <0 &intc 0 125 0
 		1 &intc 0 221 0>;
 	interrupt-names = "hc_irq", "pwr_irq";
-	/delete-property/ cd-gpios;
+	/delete-property/ cd-gpios;*/
 };
 

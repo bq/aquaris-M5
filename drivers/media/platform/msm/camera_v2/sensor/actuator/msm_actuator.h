@@ -21,7 +21,6 @@
 #include "msm_camera_dt_util.h"
 #include "msm_camera_io_util.h"
 
-
 #define DEFINE_MSM_MUTEX(mutexname) \
 	static struct mutex mutexname = __MUTEX_INITIALIZER(mutexname)
 
@@ -29,11 +28,17 @@
 
 struct msm_actuator_ctrl_t;
 
+#ifdef CONFIG_VEGETALTE_COMMON
+enum msm_actuator_state_t {
+	ACTUATOR_POWER_UP,
+	ACTUATOR_POWER_DOWN,
+};
+#else
 enum msm_actuator_state_t {
 	ACTUATOR_POWER_DOWN,
 	ACTUATOR_POWER_UP,
 };
-
+#endif
 struct msm_actuator_func_tbl {
 	int32_t (*actuator_i2c_write_b_af)(struct msm_actuator_ctrl_t *,
 			uint8_t,
