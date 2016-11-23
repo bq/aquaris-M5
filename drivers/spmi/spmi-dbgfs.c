@@ -559,6 +559,25 @@ static ssize_t spmi_dfs_reg_read(struct file *file, char __user *buf,
 	return len;
 }
 
+static ssize_t spmi_dfs_pon_off_reason_regs_read(struct file *file, char __user *buf,
+	size_t count, loff_t *ppos)
+{
+	struct spmi_trans *trans = file->private_data;
+	int ret;
+        u8 data[16];
+        static int finished = 0;
+        if (finished) {
+                finished = 0;
+                return 0;
+        }
+        finished = 1;
+
+        spmi_read_data(trans->ctrl, data, 0x80C, 2);
+	ret = sprintf(buf, "0x80C:0x%02x\n0x80D:0x%02x\n", data[0], data[1]);
+
+	return ret;
+}
+
 static const struct file_operations spmi_dfs_reg_fops = {
 	.open		= spmi_dfs_data_open,
 	.release	= spmi_dfs_close,
@@ -571,6 +590,11 @@ static const struct file_operations spmi_dfs_raw_data_fops = {
 	.release	= spmi_dfs_close,
 	.read		= spmi_dfs_reg_read,
 	.write		= spmi_dfs_reg_write,
+};
+
+static const struct file_operations spmi_dfs_pon_off_reason_regs_fops = {
+	.open		= spmi_dfs_data_open,
+	.read		= spmi_dfs_pon_off_reason_regs_read,
 };
 
 /**
@@ -682,6 +706,13 @@ int spmi_dfs_add_controller(struct spmi_controller *ctrl)
 						&spmi_dfs_raw_data_fops);
 	if (!file) {
 		pr_err("error creating 'data' entry\n");
+		goto err_remove_fs;
+	}
+
+	file = debugfs_create_file("pon_off_reason", DFS_MODE | S_IROTH | S_IRGRP, dir, ctrl_data,
+						&spmi_dfs_pon_off_reason_regs_fops);
+	if (!file) {
+		pr_err("error creating 'show_regs' entry\n");
 		goto err_remove_fs;
 	}
 

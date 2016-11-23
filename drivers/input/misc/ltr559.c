@@ -429,9 +429,13 @@ static int ltr559_als_enable(struct i2c_client *client, int on)
 		ret |= i2c_smbus_read_byte_data(client, LTR559_ALS_DATA_CH0_1);
 		
 		cancel_delayed_work_sync(&data->als_work);
-        data->last_lux=0;
+		if (data->last_lux == 0){
+			// in total darkness, force a first report
+			input_report_abs(data->input_dev_als, ABS_MISC, 1);
+			input_sync(data->input_dev_als);
+			data->last_lux=1;
+		}
 		schedule_delayed_work(&data->als_work, msecs_to_jiffies(data->platform_data->als_poll_interval));
-
 	} else {
 		cancel_delayed_work_sync(&data->als_work);
 		ret = i2c_smbus_write_byte_data(client, LTR559_ALS_CONTR, MODE_ALS_StdBy);

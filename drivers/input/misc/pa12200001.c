@@ -1126,6 +1126,12 @@ static ssize_t pa12200001_store_enable_als_sensor(struct device *pdev,
     mode = pa12200001_get_mode(data->client);
     if (val == 1) {
         //turn on light  sensor
+        if (data->pre_lux == 0){
+            // in total darkness, force a first report
+            input_report_abs(data->light_input_dev, ABS_LIGHT, 1);
+            input_sync(data->light_input_dev);
+            data->pre_lux = 1;
+        }
         mode |= ALS_ACTIVE;
         set_bit(ALS_ACTIVE,&data->enable);
     } else {
