@@ -95,7 +95,7 @@
 		qcom,fg-batt-capacity-mah = <3030>;
 		qcom,fg-cc-soc-coeff = <0x8168>;
 		qcom,fg-delta-soc = <1>;
-                qcom,fg-soc-min = <3>;
+                qcom,fg-soc-min = <1>;
 
 		qcom,fg-cutoff-voltage-mv = <3400>;
 		qcom,fg-iterm-ma = <100>;
@@ -108,14 +108,13 @@
 		qcom,charging-timeout = <768>;
 		qcom,fg-reset-at-pon;
 		qcom,rsense-10mhom;
-		qcom,fg-reset-thresold-mv = <200>;
+		qcom,fg-reset-thresold-mv = <50>;
 		qcom,otg-batt-curr-limit = <1500>;
 		qcom,recharge-thresh-mv = <50>;
 		qcom,thermal-mitigation = <1500 700 600 0>;
 		qcom,fg-auto-recharge-soc = <99>;
 		qcom,empty-soc-disabled;
 		regulator-name = "smb1360_otg_vreg";
-		qcom,awake-min-soc;
 		qcom,cfg-current-limited = <1200>;
 
 		qcom,otp-hard-jeita-config;
