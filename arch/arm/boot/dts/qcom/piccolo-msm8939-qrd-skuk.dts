@@ -103,7 +103,7 @@
 		qcom,fg-cc-to-cv-mv = <4397>;
 		qcom,thermistor-c1-coeff = <0x86C2>;
 
-		qcom,float-voltage-mv = <4420>;
+		qcom,float-voltage-mv = <4400>;
 		qcom,iterm-ma = <100>;
 		qcom,charging-timeout = <768>;
 		qcom,fg-reset-at-pon;
@@ -112,7 +112,7 @@
 		qcom,otg-batt-curr-limit = <1500>;
 		qcom,recharge-thresh-mv = <50>;
 		qcom,thermal-mitigation = <1500 700 600 0>;
-		qcom,fg-auto-recharge-soc = <99>;
+		qcom,fg-auto-recharge-soc = <97>;
 		qcom,empty-soc-disabled;
 		regulator-name = "smb1360_otg_vreg";
 		qcom,cfg-current-limited = <1200>;
