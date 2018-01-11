@@ -8,6 +8,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/kernel.h>
+
 #ifndef _ARIZONA_PDATA_H
 #define _ARIZONA_PDATA_H
 
@@ -43,7 +45,19 @@
 #define ARIZONA_GPN_FN_SHIFT                          0  /* GPN_FN - [6:0] */
 #define ARIZONA_GPN_FN_WIDTH                          7  /* GPN_FN - [6:0] */
 
+
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+#define WM8285_GPN_LVL                           0x8000  /* GPN_LVL */
+#define WM8285_GPN_LVL_MASK                      0x8000  /* GPN_LVL */
+#define WM8285_GPN_LVL_SHIFT                         15  /* GPN_LVL */
+#define WM8285_GPN_LVL_WIDTH                          1  /* GPN_LVL */
+
+#define ARIZONA_MAX_GPIO_REGS 5	
+#define WM8285_MAX_GPIO_REGS 80
+#else
 #define ARIZONA_MAX_GPIO 5
+#endif
+
 
 #define ARIZONA_32KZ_MCLK1 1
 #define ARIZONA_32KZ_MCLK2 2
@@ -56,7 +70,11 @@
 #define ARIZONA_DMIC_MICBIAS2 2
 #define ARIZONA_DMIC_MICBIAS3 3
 
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+#define ARIZONA_MAX_MICBIAS 4	
+#else
 #define ARIZONA_MAX_MICBIAS 3
+#endif
 
 #define ARIZONA_INMODE_DIFF 0
 #define ARIZONA_INMODE_SE   1
@@ -71,13 +89,27 @@
 
 #define ARIZONA_MAX_PDM_SPK 2
 
+/* Treat INT_MAX impedance as open circuit */
+#define ARIZONA_HP_Z_OPEN INT_MAX
+
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+#define ARIZONA_MAX_DSP	7  
+#else
+#define ARIZONA_MAX_DSP	4
+#endif
+
 struct regulator_init_data;
+
+struct arizona_jd_state;
 
 struct arizona_micbias {
 	int mV;                    /** Regulated voltage */
 	unsigned int ext_cap:1;    /** External capacitor fitted */
 	unsigned int discharge:1;  /** Actively discharge */
-	unsigned int fast_start:1; /** Enable aggressive startup ramp rate */
+	unsigned int soft_start:1; /** Disable aggressive startup ramp rate */
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+	unsigned int fast_start:1; /** Enable aggressive startup ramp rate */ 
+#endif
 	unsigned int bypass:1;     /** Use bypass mode */
 };
 
@@ -95,7 +127,34 @@ struct arizona_micd_range {
 struct arizona_pdata {
 	int reset;      /** GPIO controlling /RESET, if any */
 	int ldoena;     /** GPIO controlling LODENA, if any */
+#if defined(CONFIG_LCT_WM8998_GPIO_CTRL)
+	int ena_ldo;
+	int ldo_enable;
+	int i2c_addr;
+	const char *clk_src_name;
+	struct clk *i2s_mclk;
+	struct pinctrl *gpio_pinctrl;
+	struct pinctrl_state *gpio_state_active;
+	struct pinctrl_state *gpio_state_suspend;
+#endif
 
+#if defined(CONFIG_AUDIO_CODEC_WM8998_SWITCH)
+	int ldo_spk;
+	int (*hp_volume_cb)(void *info, int volume);
+#endif
+
+#if defined(CONFIG_LCT_FLORIDA_GPIO_CTRL)		
+	int ena_ldo;
+	int ldo_enable;
+	int ldo_spk;
+	//int i2c_addr;
+	int spi_addr;
+	const char *clk_src_name;
+	struct clk *spi_mclk;
+	struct pinctrl *gpio_pinctrl;
+	struct pinctrl_state *gpio_state_active;
+	struct pinctrl_state *gpio_state_suspend;
+#endif
 	/** Regulator configuration for MICVDD */
 	struct regulator_init_data *micvdd;
 
@@ -112,8 +171,11 @@ struct arizona_pdata {
 	int gpio_base;
 
 	/** Pin state for GPIO pins */
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+	unsigned int gpio_defaults[WM8285_MAX_GPIO_REGS];
+#else
 	int gpio_defaults[ARIZONA_MAX_GPIO];
-
+#endif
 	/**
 	 * Maximum number of channels clocks will be generated for,
 	 * useful for systems where and I2S bus with multiple data
@@ -121,11 +183,20 @@ struct arizona_pdata {
 	 */
 	int max_channels_clocked[ARIZONA_MAX_AIF];
 
+	/** Time in milliseconds to keep wake lock during jack detection */
+	int jd_wake_time;
+
 	/** GPIO5 is used for jack detection */
 	bool jd_gpio5;
 
 	/** Internal pull on GPIO5 is disabled when used for jack detection */
 	bool jd_gpio5_nopull;
+
+	/** set to true if jackdet contact opens on insert */
+	bool jd_invert;
+
+	/** If non-zero don't run headphone detection, report this value */
+	int fixed_hpdet_imp;
 
 	/** Use the headphone detect circuit to identify the accessory */
 	bool hpdet_acc_id;
@@ -135,6 +206,32 @@ struct arizona_pdata {
 
 	/** GPIO used for mic isolation with HPDET */
 	int hpdet_id_gpio;
+
+	/** Callback notifying HPDET result */
+	void (*hpdet_cb)(unsigned int measurement);
+
+	/** Callback notifying mic presence */
+	void (*micd_cb)(bool mic);
+
+	/** If non-zero, specifies the maximum impedance in ohms
+	 * that will be considered as a short circuit.
+	 */
+	int hpdet_short_circuit_imp;
+
+	/** Use HPDETL to check for moisture, this value specifies the
+	 * threshold impedance in ohms above which it will be considered
+	 * a false detection
+	 */
+	int hpdet_moisture_imp;
+
+	/**
+	 * Channel to use for headphone detection, valid values are 0 for
+	 * left and 1 for right
+	 */
+	int hpdet_channel;
+
+	/** Use software comparison to determine mic presence */
+	bool micd_software_compare;
 
 	/** Extra debounce timeout used during initial mic detection (ms) */
 	int micd_detect_debounce;
@@ -157,9 +254,23 @@ struct arizona_pdata {
 	/** Force MICBIAS on for mic detect */
 	bool micd_force_micbias;
 
+	/** Force MICBIAS on for initial mic detect only, not button detect */
+	bool micd_force_micbias_initial;
+
+	/** Declare an open circuit as a 4 pole jack */
+	bool micd_open_circuit_declare;
+
+	/** Delay between jack detection and MICBIAS ramp */
+	int init_mic_delay;
+
 	/** Mic detect level parameters */
 	const struct arizona_micd_range *micd_ranges;
 	int num_micd_ranges;
+
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+	/** Mic detect clamp function */
+	int micd_clamp_mode;
+#endif
 
 	/** Headset polarity configurations */
 	struct arizona_micd_config *micd_configs;
@@ -171,7 +282,10 @@ struct arizona_pdata {
 	/** MICBIAS configurations */
 	struct arizona_micbias micbias[ARIZONA_MAX_MICBIAS];
 
-	/** Mode of input structures */
+	/**
+	 * Mode of input structures
+	 * One of the ARIZONA_INMODE_xxx values
+	 */
 	int inmode[ARIZONA_MAX_INPUT];
 
 	/** Mode for outputs */
@@ -188,6 +302,24 @@ struct arizona_pdata {
 
 	/** GPIO for primary IRQ (used for edge triggered emulation) */
 	int irq_gpio;
+
+	/** General purpose switch control */
+	int gpsw;
+
+	/** Callback which is called when the trigger phrase is detected */
+	void (*ez2ctrl_trigger)(void);
+
+	/** wm5102t output power */
+	unsigned int wm5102t_output_pwr;
+
+	/** Override the normal jack detection */
+	const struct arizona_jd_state *custom_jd;
+
+	struct wm_adsp_fw_defs *fw_defs[ARIZONA_MAX_DSP];
+	int num_fw_defs[ARIZONA_MAX_DSP];
+
+	/** Some platforms add a series resistor for hpdet to suppress pops */
+	int hpdet_ext_res;
 };
 
 #endif

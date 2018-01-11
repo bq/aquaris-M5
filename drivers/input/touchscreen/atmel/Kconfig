@@ -1,0 +1,9 @@
+config TOUCHSCREEN_ATMEL_MXTS
+        bool "Atmel mxts touchscreen"
+        default n
+        help
+          Say Y here if you have a atmel mxts touchscreen interfaced
+          to the host processor over I2C
+
+          If unsure, say N.
+

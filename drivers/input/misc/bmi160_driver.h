@@ -1,23 +1,33 @@
 /*!
  * @section LICENSE
- * (C) Copyright 2011~2016 Bosch Sensortec GmbH All Rights Reserved
+ * (C) Copyright 2011~2015 Bosch Sensortec GmbH All Rights Reserved
  *
  * This software program is licensed subject to the GNU General
  * Public License (GPL).Version 2,June 1991,
  * available at http://www.fsf.org/copyleft/gpl.html
  *
  * @filename bmi160_driver.h
- * @date     2015/08/17 14:40
- * @id       "09afbe6"
- * @version  1.4
+ * @date     2014/11/25 14:40
+ * @id       "b3ccb9e"
+ * @version  1.2
  *
  * @brief
  * The head file of BMI160 device driver core code
 */
+#ifndef _BMI160_DRIVER_H
+#define _BMI160_DRIVER_H
+
+#ifdef __KERNEL__
 #include <linux/kernel.h>
 #include <linux/unistd.h>
 #include <linux/types.h>
 #include <linux/string.h>
+#else
+#include <unistd.h>
+#include <sys/types.h>
+#include <string.h>
+#endif
+
 #include <linux/version.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -28,9 +38,6 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include <linux/sensors.h>
-#include <linux/regulator/consumer.h>
-#include <linux/regmap.h>
 
 #include <linux/time.h>
 #include <linux/ktime.h>
@@ -43,12 +50,6 @@
 
 /* sensor specific */
 #define SENSOR_NAME "bmi160"
-#define BMI160_ACCEL_INPUT_NAME         "bmi160-accel"
-#define BMI160_GYRO_INPUT_NAME          "bmi160-gyro"
-#define ABSMIN                      -512
-#define ABSMAX                      512
-#define GYRO_MIN_VALUE		-32768
-#define GYRO_MAX_VALUE		32767
 
 #define SENSOR_CHIP_ID_BMI (0xD0)
 #define SENSOR_CHIP_ID_BMI_C2 (0xD1)
@@ -78,9 +79,6 @@
 #define BYTES_PER_LINE (16)
 
 #define BUF_SIZE_PRINT (16)
-
-#define BMI_FAST_CALI_TRUE  (1)
-#define BMI_FAST_CALI_ALL_RDY (7)
 
 /*! FIFO 1024 byte, max fifo frame count not over 150 */
 #define FIFO_FRAME_CNT 20
@@ -182,13 +180,6 @@
 #define BMM050_DIG_XY2                     0x70
 #define BMM050_DIG_XY1                     0x71
 
-struct regulator_map {
-	struct regulator	*regulator;
-	int			min_uv;
-	int			max_uv;
-	char			*supply;
-};
-
 struct bmi160mag_compensate_t {
 	signed char dig_x1;
 	signed char dig_y1;
@@ -221,15 +212,20 @@ enum BMI_FIFO_DATA_SELECT_T {
 
 /*bmi interrupt about step_detector and sgm*/
 #define INPUT_EVENT_STEP_DETECTOR    5
-#define INPUT_EVENT_SGM              REL_DIAL/*7*/
-#define INPUT_EVENT_FAST_ACC_CALIB_DONE    6
-#define INPUT_EVENT_FAST_GYRO_CALIB_DONE    4
+#define INPUT_EVENT_SGM              REL_DIAL
+
 
 
 /*!
 * Bst sensor common definition,
 * please give parameters in BSP file.
 */
+struct bmi160_platform_data {
+        int gpio_pin;
+        unsigned int int_flag;
+        s8 place;
+};
+
 struct bosch_sensor_specific {
 	char *name;
 	/* 0 to 7 */
@@ -270,9 +266,9 @@ struct err_status {
 
 /*! bmi160 fifo frame for all sensors */
 struct fifo_frame_t {
-	struct bmi160_accel_t *acc_farr;
-	struct bmi160_gyro_t *gyro_farr;
-	struct bmi160_mag_xyz_s32_t *mag_farr;
+	struct bmi160acc_t *acc_farr;
+	struct bmi160gyro_t *gyro_farr;
+	struct bmi160mag_t *mag_farr;
 
 	unsigned char acc_frame_cnt;
 	unsigned char gyro_frame_cnt;
@@ -290,35 +286,13 @@ struct fifo_sensor_time_t {
 	u32 mag_ts;
 };
 
-struct pedometer_data_t {
-	/*! Fix step detector misinformation for the first time*/
-	u8 wkar_step_detector_status;
-	u_int32_t last_step_counter_value;
-};
 
 struct bmi_client_data {
 	struct bmi160_t device;
-	struct i2c_client *i2c;
 	struct device *dev;
-	struct input_dev *input_accel;
-	struct input_dev *input_gyro;
-	struct sensors_classdev accel_cdev;
-	struct sensors_classdev gyro_cdev;
-	struct regulator *vdd;
-	struct regulator *vio;
+	struct input_dev *input;
 	struct delayed_work work;
-	struct delayed_work gyro_work;
 	struct work_struct irq_work;
-
-	struct work_struct report_data_work;
-	int is_timer_running;
-	struct hrtimer timer;
-	ktime_t work_delay_kt;
-	uint64_t timestamp;
-	uint64_t base_time;
-	uint64_t fifo_time;
-	uint64_t gyro_count;
-	uint64_t time_odr;
 
 	u8 chip_id;
 
@@ -326,12 +300,10 @@ struct bmi_client_data {
 	struct odr_t odr;
 	struct range_t range; /*TO DO*/
 	struct err_status err_st;
-	struct pedometer_data_t pedo_data;
 	s8 place;
 	u8 selftest;
 
 	atomic_t wkqueue_en; /*TO DO acc gyro mag*/
-	atomic_t gyro_en;
 	atomic_t delay;
 	atomic_t selftest_result;
 
@@ -342,16 +314,15 @@ struct bmi_client_data {
 	struct fifo_frame_t fifo_frame;
 
 	unsigned char *fifo_data;
+	u64 fifo_time;
 	u8 stc_enable;
-	uint16_t gpio_pin;
 	u8 std;
-	u8 sig_flag;
-	unsigned char calib_status;
 	struct mutex mutex_op_mode;
 	struct mutex mutex_enable;
 	struct mutex mutex_ring_buf;
-	struct bosch_sensor_specific *bst_pd;
+	struct bmi160_platform_data *pdata;
 	bool power_enabled;
+	struct bosch_sensor_specific *bst_pd;
 	int IRQ;
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend_handler;
@@ -398,4 +369,9 @@ int bmi_remove(struct device *dev);
 int bmi_suspend(struct device *dev);
 int bmi_resume(struct device *dev);
 
+
+
+
+#endif/*_BMI160_DRIVER_H*/
+/*@}*/
 

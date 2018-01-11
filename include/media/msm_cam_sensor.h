@@ -464,6 +464,8 @@ struct msm_actuator_tuning_params_t {
 	uint16_t region_size;
 	uint32_t total_steps;
 	struct region_params_t *region_params;
+	enum actuator_initial_position_type initial_position_type;
+	int16_t start_code;
 };
 
 struct park_lens_data_t {
@@ -550,6 +552,9 @@ enum msm_camera_led_config_t {
 	MSM_CAMERA_LED_HIGH,
 	MSM_CAMERA_LED_INIT,
 	MSM_CAMERA_LED_RELEASE,
+#ifdef CONFIG_CAMERA_LED_PRE
+	MSM_CAMERA_LED_PRE,
+#endif
 };
 
 struct msm_camera_led_cfg_t {
@@ -645,6 +650,8 @@ struct msm_actuator_tuning_params_t32 {
 	uint16_t region_size;
 	uint32_t total_steps;
 	compat_uptr_t region_params;
+	enum actuator_initial_position_type initial_position_type;
+	int16_t start_code;
 };
 
 struct msm_actuator_params_t32 {

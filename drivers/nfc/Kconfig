@@ -36,8 +36,23 @@ config NFC_MEI_PHY
 
 	  If unsure, say N.
 
+config NFC_PN547
+	tristate "NXP PN547 NFC driver"
+	depends on NFC_HCI
+	select CRC_CCITT
+	default n
+	help
+	  NXP PN547 core driver.
+	  This is a driver based on the HCI NFC kernel layers and
+	  will thus not work with NXP libnfc library.
+
+	  To compile this driver as a module, choose m here. The module will
+	  be called pn544.
+	  Say N if unsure.
+
 source "drivers/nfc/pn544/Kconfig"
 source "drivers/nfc/microread/Kconfig"
+source "drivers/nfc/bcm2079x/Kconfig"
 
 endmenu
 

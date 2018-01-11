@@ -785,6 +785,16 @@ config SENSORS_AKM09911
 	  To compile this driver as a module, choose M here: the
 	  module will be called akm09911.
 
+config SENSORS_AKM09911_NAMEK
+	tristate "AKM09911 3-axis electronic compass sensor driver"
+	depends on I2C
+	help
+	  Say Y here if you want to enable the akm09911 ecompass sensor
+	  driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called akm09911.
+
 config SENSORS_AKM8963
 	tristate "AKM8963 3-axis electronic compass sensor driver"
 	depends on I2C
@@ -893,5 +903,79 @@ config SENSORS_BMI160_ENABLE_INT2
 	help
 	 If you say yes here, you get INT2 support for Bosch Sensortec
 	 sensors BMI160.
+
+config INPUT_LSM6DX0
+     tristate "STMicroelectronics LSM6DS0 and LSM6DL0"
+     depends on INPUT
+     depends on I2C
+     help
+         Say Y here to enable STMicroelectronics LSM6DS0 or LSM6DL0inertial
+         module.
+
+         To compile this driver as a module, choose M here: the
+         module will be called lsm6dx0.
+
+config INPUT_LSM6DS3
+         tristate "STMicroelectronics LSM6DS3 sensor"
+         depends on I2C && SYSFS
+         help
+           This driver support the STMicroelectronics LSM6DS3 sensor.
+
+           To compile this driver as a module, choose M here. The module
+	   will be called lsm6ds3.
+
+config HALL
+	tristate "HALL Switch"
+	help
+	 If you say yes here, you get support for hall switch control device
+
+
+if INPUT_LSM6DS3
+choice
+	prompt "LSM6DS3 bus selection"
+	default INPUT_LSM6DS3_I2C
+
+config INPUT_LSM6DS3_I2C
+	bool "I2C"
+
+config INPUT_LSM6DS3_SPI
+	bool "SPI"
+endchoice
+
+choice
+	prompt "LSM6DS3 mode selection"
+	default LSM6DS3_POLLING_MODE
+
+config LSM6DS3_POLLING_MODE
+	bool "Polling"
+
+config LSM6DS3_FIFO_MODE
+	bool "FIFO trigger"
+endchoice
+
+endif
+
+config INPUT_LTR559
+	tristate "LTR559 light/proximity sensor support"
+	depends on I2C
+	default n
+	help
+	 Driver for LTR559 light/proximity sensor.
+
+config INPUT_LTR559_PICCOLO
+	tristate "LTR559 light/proximity sensor support"
+	depends on I2C
+	default n
+	help
+	 Driver for LTR559 light/proximity sensor.
+
+config SENSORS_PA12200001
+	tristate "pa12200001 device driver"
+	depends on I2C
+	help
+		Say Y here you want to enable for the pa12200001
+		light and proximity sensors driver.
+		To compile this driver as a module, choose M here
+
 endif
 

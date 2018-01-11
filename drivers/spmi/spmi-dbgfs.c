@@ -75,6 +75,7 @@ struct spmi_trans {
 	u32 addr;	/* 20-bit address: SID + PID + Register offset */
 	u32 offset;	/* Offset of last read data */
 	bool raw_data;	/* Set to true for raw data dump */
+	bool get_pon_off_info; /* Set to true to get power ON/OFF info */
 	struct mutex spmi_dfs_lock; /* Prevent thread concurrency */
 	struct spmi_controller *ctrl;
 	struct spmi_log_buffer *log; /* log buffer */
@@ -196,6 +197,22 @@ static int spmi_dfs_raw_data_open(struct inode *inode, struct file *file)
 	rc = spmi_dfs_open(ctrl_data, file);
 	trans = file->private_data;
 	trans->raw_data = true;
+	return rc;
+}
+
+static int spmi_dfs_pon_data_open(struct inode *inode, struct file *file)
+{
+	int rc;
+	struct spmi_trans *trans;
+	struct spmi_ctrl_data *ctrl_data = inode->i_private;
+
+	rc = spmi_dfs_open(ctrl_data, file);
+	trans = file->private_data;
+	trans->get_pon_off_info = true;
+	trans->addr = 0x080C;
+	trans->offset = 0x080C;
+	trans->cnt = 2;
+
 	return rc;
 }
 
@@ -424,6 +441,51 @@ done:
 }
 
 /**
+ * write_pon_data_to_log
+ * @trans: Pointer to SPMI transaction data.
+ * @offset: SPMI address offset to start reading from.
+ * @pcnt: Pointer to 'cnt' variable.  Indicates the number of bytes to read.
+ *
+ * The 'offset' is a 20-bits SPMI address which includes a 4-bit slave id (SID),
+ * an 8-bit peripheral id (PID), and an 8-bit peripheral register address.
+ *
+ * On a successful read, the pcnt is decremented by the number of data
+ * bytes read across the SPMI bus.  When the cnt reaches 0, all requested
+ * bytes have been read.
+ */
+static int
+write_pon_data_to_log(struct spmi_trans *trans, int offset, size_t *pcnt)
+{
+	u8  data[16];
+	struct spmi_log_buffer *log = trans->log;
+
+	int cnt = 0;
+	int items_to_read = min(ARRAY_SIZE(data), *pcnt);
+
+	/* Buffer needs enough space for an entire line */
+	if ((log->len - log->wpos) < 80)
+		goto done;
+
+	/* Read the desired number of "items" */
+	if (spmi_read_data(trans->ctrl, data, offset, items_to_read))
+		goto done;
+
+	*pcnt -= items_to_read;
+
+	/* Log the data items */
+	cnt = print_to_log(log, "0x80C:0x%02x\n0x80D:0x%02x\n", data[0], data[1]);
+	if (cnt == 0)
+		goto done;
+
+	/* If the last character was a space, then replace it with a newline */
+	if (log->wpos > 0 && log->data[log->wpos - 1] == ' ')
+		log->data[log->wpos - 1] = '\n';
+
+done:
+	return cnt;
+}
+
+/**
  * get_log_data - reads data across the SPMI bus and saves to the log buffer
  * @trans: Pointer to SPMI transaction data.
  *
@@ -443,7 +505,9 @@ static int get_log_data(struct spmi_trans *trans)
 	if (item_cnt == 0)
 		return 0;
 
-	if (trans->raw_data)
+	if (trans->get_pon_off_info)
+		write_to_log = write_pon_data_to_log;
+	else if (trans->raw_data)
 		write_to_log = write_raw_data_to_log;
 	else
 		write_to_log = write_next_line_to_log;
@@ -603,6 +667,12 @@ static const struct file_operations spmi_dfs_raw_data_fops = {
 	.write		= spmi_dfs_reg_write,
 };
 
+static const struct file_operations spmi_dfs_pon_off_reason_regs_fops = {
+	.open		= spmi_dfs_pon_data_open,
+	.read		= spmi_dfs_reg_read,
+	.release	= spmi_dfs_close,
+};
+
 /**
  * spmi_dfs_create_fs: create debugfs file system.
  * @return pointer to root directory or NULL if failed to create fs
@@ -712,6 +782,13 @@ int spmi_dfs_add_controller(struct spmi_controller *ctrl)
 						&spmi_dfs_raw_data_fops);
 	if (!file) {
 		pr_err("error creating 'data' entry\n");
+		goto err_remove_fs;
+	}
+
+	file = debugfs_create_file("pon_off_reason", DFS_MODE | S_IROTH | S_IRGRP, dir, ctrl_data,
+						&spmi_dfs_pon_off_reason_regs_fops);
+	if (!file) {
+		pr_err("error creating 'show_regs' entry\n");
 		goto err_remove_fs;
 	}
 

@@ -525,6 +525,15 @@ config LEDS_AW2013
 	  This option enables support for the AW2013 RGB LED connected
 	  through I2C. Say Y to enable support for the AW2013 LED.
 
+config LEDS_KTD2026
+        tristate "LED driver for KTD2026 RGB LED"
+        depends on LEDS_CLASS
+        depends on REGULATOR
+        help
+          This option enables support for KTD2026 RGB LED driver chips
+          accessed via the I2C bus.
+
+
 comment "LED Triggers"
 source "drivers/leds/trigger/Kconfig"
 

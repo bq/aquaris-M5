@@ -24,6 +24,8 @@
 
 #define SENSOR_MAX_MOUNTANGLE (360)
 
+extern struct vendor_eeprom s_vendor_eeprom[CAMERA_VENDOR_EEPROM_COUNT_MAX];
+
 static struct v4l2_file_operations msm_sensor_v4l2_subdev_fops;
 
 /* Static declaration */
@@ -655,6 +657,7 @@ int32_t msm_sensor_driver_probe(void *setting,
 
 	unsigned long                        mount_pos = 0;
 	uint32_t                             is_yuv;
+        uint8_t                              i;
 
 	/* Validate input parameters */
 	if (!setting) {
@@ -742,6 +745,32 @@ int32_t msm_sensor_driver_probe(void *setting,
 			slave_info->sensor_init_params.position);
 		CDBG("mount %d",
 			slave_info->sensor_init_params.sensor_mount_angle);
+	}
+
+	CDBG("camera eeprom_name = %s\n", slave_info->eeprom_name);
+	CDBG("slave_info->sensor_name = %s\n", slave_info->sensor_name);
+	for (i = 0; i < CAMERA_VENDOR_EEPROM_COUNT_MAX; i++) {
+		CDBG("dtsi eeprom_name[%d] = %s, module_id = %d\n", i, s_vendor_eeprom[i].eeprom_name, s_vendor_eeprom[i].module_id);
+		if (strcmp(slave_info->eeprom_name,s_vendor_eeprom[i].eeprom_name) == 0) {
+			if (((strcmp(slave_info->sensor_name, "s5k3m2_F3M2YAP") == 0) && (s_vendor_eeprom[i].module_id == MID_QTECH))
+			|| ((strcmp(slave_info->sensor_name, "ov5648_fa") == 0) && (s_vendor_eeprom[i].module_id == MID_QTECH))
+			|| ((strcmp(slave_info->sensor_name,"imx214_olqba15") == 0) && (s_vendor_eeprom[i].module_id == MID_OFILM))
+			|| ((strcmp(slave_info->sensor_name,"imx214_f13n05e") == 0) && (s_vendor_eeprom[i].module_id == MID_SUNNY))
+			|| ((strcmp(slave_info->sensor_name,"s5k5e2_olq5f24") == 0) && (s_vendor_eeprom[i].module_id == MID_OFILM))
+			|| ((strcmp(slave_info->sensor_name,"s5k5e2_s7b5") == 0) && (s_vendor_eeprom[i].module_id == MID_KINGCOM))
+			|| ((strcmp(slave_info->sensor_name,"imx214_f13n05k") == 0) && (s_vendor_eeprom[i].module_id == MID_SUNNY))
+			|| ((strcmp(slave_info->sensor_name,"imx214_olqba22") == 0) && (s_vendor_eeprom[i].module_id == MID_OFILM))
+			) {
+				CDBG("module found! eeprom_name = %s\n", slave_info->eeprom_name);
+				break;
+			}
+		}
+	}
+
+	if(i >= CAMERA_VENDOR_EEPROM_COUNT_MAX) {
+		pr_err("module not found! eeprom_name = %s sensor_name = %s\n", slave_info->eeprom_name, slave_info->sensor_name);
+		rc = -EFAULT;
+		goto free_slave_info;
 	}
 
 	/* Validate camera id */

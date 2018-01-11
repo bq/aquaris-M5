@@ -83,3 +83,9 @@ obj-$(CONFIG_TOUCHSCREEN_GT9XX)		+= gt9xx/
 obj-$(CONFIG_TOUCHSCREEN_BU21150)	+= bu21150.o
 obj-$(CONFIG_INPUT_MT_WRAPPER)		+= input_mt_wrapper.o
 obj-$(CONFIG_TOUCHSCREEN_IT7260_I2C)    += it7258_ts_i2c.o
+obj-$(CONFIG_TOUCHSCREEN_ATMEL_MXTS) += atmel/
+obj-$(CONFIG_TOUCHSCREEN_ATMEL_MXTS_PICCOLO)		+= atmel-piccolo/
+obj-$(CONFIG_TOUCHSCREEN_FTS) += focaltech_touch/
+obj-$(CONFIG_TOUCHSCREEN_TP_INFO)	+= tpinfo/
+obj-$(CONFIG_TOUCHSCREEN_HIMAX852X)	+= himax852x/
+

@@ -23,14 +23,26 @@
 #define ARIZONA_CLK_ASYNCCLK       2
 #define ARIZONA_CLK_OPCLK          3
 #define ARIZONA_CLK_ASYNC_OPCLK    4
+#define ARIZONA_CLK_SYSCLK_2       5
+#define ARIZONA_CLK_SYSCLK_3       6
+#define ARIZONA_CLK_ASYNCCLK_2     7
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+#define ARIZONA_CLK_DSPCLK         8
+#endif
 
 #define ARIZONA_CLK_SRC_MCLK1    0x0
 #define ARIZONA_CLK_SRC_MCLK2    0x1
 #define ARIZONA_CLK_SRC_FLL1     0x4
 #define ARIZONA_CLK_SRC_FLL2     0x5
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+#define ARIZONA_CLK_SRC_FLL3     0x6
+#endif
 #define ARIZONA_CLK_SRC_AIF1BCLK 0x8
 #define ARIZONA_CLK_SRC_AIF2BCLK 0x9
 #define ARIZONA_CLK_SRC_AIF3BCLK 0xa
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+#define ARIZONA_CLK_SRC_AIF4BCLK 0xb
+#endif
 
 #define ARIZONA_FLL_SRC_NONE      -1
 #define ARIZONA_FLL_SRC_MCLK1      0
@@ -41,9 +53,15 @@
 #define ARIZONA_FLL_SRC_AIF1BCLK   8
 #define ARIZONA_FLL_SRC_AIF2BCLK   9
 #define ARIZONA_FLL_SRC_AIF3BCLK  10
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+#define ARIZONA_FLL_SRC_AIF4BCLK  11
+#endif
 #define ARIZONA_FLL_SRC_AIF1LRCLK 12
 #define ARIZONA_FLL_SRC_AIF2LRCLK 13
 #define ARIZONA_FLL_SRC_AIF3LRCLK 14
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+#define ARIZONA_FLL_SRC_AIF4LRCLK 15
+#endif
 
 #define ARIZONA_MIXER_VOL_MASK             0x00FE
 #define ARIZONA_MIXER_VOL_SHIFT                 1
@@ -54,14 +72,34 @@
 #define ARIZONA_CLK_24MHZ  2
 #define ARIZONA_CLK_49MHZ  3
 #define ARIZONA_CLK_73MHZ  4
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+#define WM8285_CLK_98MHZ   4
+#endif
 #define ARIZONA_CLK_98MHZ  5
 #define ARIZONA_CLK_147MHZ 6
 
-#define ARIZONA_MAX_DAI  4
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+#define WM8285_DSP_CLK_9MHZ   0
+#define WM8285_DSP_CLK_18MHZ  1
+#define WM8285_DSP_CLK_36MHZ  2
+#define WM8285_DSP_CLK_73MHZ  3
+#define WM8285_DSP_CLK_147MHZ 4
+
+#define ARIZONA_SLIM1 4
+#define ARIZONA_SLIM2 5
+#define ARIZONA_SLIM3 6
+
+#define ARIZONA_MAX_DAI  11
+#define ARIZONA_MAX_ADSP 7
+#else
+#define ARIZONA_MAX_DAI  10
 #define ARIZONA_MAX_ADSP 4
+#endif
+
 
 struct arizona;
 struct wm_adsp;
+struct arizona_jd_state;
 
 struct arizona_dai_priv {
 	int clk;
@@ -72,20 +110,37 @@ struct arizona_priv {
 	struct arizona *arizona;
 	int sysclk;
 	int asyncclk;
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+	int dspclk;
+#endif
 	struct arizona_dai_priv dai[ARIZONA_MAX_DAI];
 
 	int num_inputs;
 	unsigned int in_pending;
-
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
 	unsigned int spk_ena:2;
 	unsigned int spk_ena_pending:1;
+#endif
 };
-
-#define ARIZONA_NUM_MIXER_INPUTS 99
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+#define ARIZONA_NUM_MIXER_INPUTS 134
+#define ARIZONA_V2_NUM_MIXER_INPUTS 138
+#else
+#define ARIZONA_NUM_MIXER_INPUTS 104
+#endif
 
 extern const unsigned int arizona_mixer_tlv[];
 extern const char *arizona_mixer_texts[ARIZONA_NUM_MIXER_INPUTS];
 extern int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+extern const char *arizona_v2_mixer_texts[ARIZONA_V2_NUM_MIXER_INPUTS];
+extern int arizona_v2_mixer_values[ARIZONA_V2_NUM_MIXER_INPUTS];
+#endif
+
+#define ARIZONA_GAINMUX_CONTROLS(name, base) \
+	SOC_SINGLE_RANGE_TLV(name " Input Volume", base + 1,		\
+			     ARIZONA_MIXER_VOL_SHIFT, 0x20, 0x50, 0,	\
+			     arizona_mixer_tlv)
 
 #define ARIZONA_MIXER_CONTROLS(name, base) \
 	SOC_SINGLE_RANGE_TLV(name " Input 1 Volume", base + 1,		\
@@ -127,6 +182,29 @@ extern int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 	ARIZONA_MUX_ENUMS(name##_aux5, base_reg + 32);	\
 	ARIZONA_MUX_ENUMS(name##_aux6, base_reg + 40)
 
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+#define WM8285_MUX_ENUM_DECL(name, reg) \
+	SOC_VALUE_ENUM_SINGLE_DECL(name, reg, 0, 0xff,			\
+				   arizona_v2_mixer_texts, arizona_v2_mixer_values)
+
+#define WM8285_MUX_ENUMS(name, base_reg) \
+	static WM8285_MUX_ENUM_DECL(name##_enum, base_reg);      \
+	static ARIZONA_MUX_CTL_DECL(name)
+
+#define WM8285_MIXER_ENUMS(name, base_reg) \
+	WM8285_MUX_ENUMS(name##_in1, base_reg);     \
+	WM8285_MUX_ENUMS(name##_in2, base_reg + 2); \
+	WM8285_MUX_ENUMS(name##_in3, base_reg + 4); \
+	WM8285_MUX_ENUMS(name##_in4, base_reg + 6)
+
+#define WM8285_DSP_AUX_ENUMS(name, base_reg) \
+	WM8285_MUX_ENUMS(name##_aux1, base_reg);	\
+	WM8285_MUX_ENUMS(name##_aux2, base_reg + 8);	\
+	WM8285_MUX_ENUMS(name##_aux3, base_reg + 16);	\
+	WM8285_MUX_ENUMS(name##_aux4, base_reg + 24);	\
+	WM8285_MUX_ENUMS(name##_aux5, base_reg + 32);	\
+	WM8285_MUX_ENUMS(name##_aux6, base_reg + 40)
+#endif
 #define ARIZONA_MUX(name, ctrl) \
 	SND_SOC_DAPM_VALUE_MUX(name, SND_SOC_NOPM, 0, 0, ctrl)
 
@@ -150,7 +228,8 @@ extern int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 	ARIZONA_MUX(name_str " Aux 5", &name##_aux5_mux), \
 	ARIZONA_MUX(name_str " Aux 6", &name##_aux6_mux)
 
-#define ARIZONA_MUX_ROUTES(name) \
+#define ARIZONA_MUX_ROUTES(widget, name) \
+	{ widget, NULL, name " Input" }, \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Input")
 
 #define ARIZONA_MIXER_ROUTES(widget, name) \
@@ -165,26 +244,70 @@ extern int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 	ARIZONA_MIXER_INPUT_ROUTES(name " Input 4")
 
 #define ARIZONA_DSP_ROUTES(name) \
-	{ name, NULL, name " Aux 1" }, \
-	{ name, NULL, name " Aux 2" }, \
-	{ name, NULL, name " Aux 3" }, \
-	{ name, NULL, name " Aux 4" }, \
-	{ name, NULL, name " Aux 5" }, \
-	{ name, NULL, name " Aux 6" }, \
+	{ name, NULL, name " Preloader"}, \
+	{ name " Preloader", NULL, name " Aux 1" }, \
+	{ name " Preloader", NULL, name " Aux 2" }, \
+	{ name " Preloader", NULL, name " Aux 3" }, \
+	{ name " Preloader", NULL, name " Aux 4" }, \
+	{ name " Preloader", NULL, name " Aux 5" }, \
+	{ name " Preloader", NULL, name " Aux 6" }, \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 1"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 2"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 3"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 4"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 5"), \
 	ARIZONA_MIXER_INPUT_ROUTES(name " Aux 6"), \
-	ARIZONA_MIXER_ROUTES(name, name "L"), \
-	ARIZONA_MIXER_ROUTES(name, name "R")
+	ARIZONA_MIXER_ROUTES(name " Preloader", name "L"), \
+	ARIZONA_MIXER_ROUTES(name " Preloader", name "R")
 
+#define ARIZONA_SAMPLE_RATE_CONTROL(name, domain) \
+	SOC_VALUE_ENUM(name, arizona_sample_rate[(domain) - 2])
+
+#define ARIZONA_SAMPLE_RATE_CONTROL_DVFS(name, domain)        \
+	SOC_VALUE_ENUM_EXT(name, arizona_sample_rate[(domain) - 2], \
+			snd_soc_get_value_enum_double,        \
+			arizona_put_sample_rate_enum)
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+#define ARIZONA_EQ_CONTROL(xname, xbase) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,	   \
+	.info = snd_soc_bytes_info, .get = snd_soc_bytes_get,      \
+	.put = arizona_eq_coeff_put, .private_value =		   \
+	((unsigned long)&(struct soc_bytes)			   \
+		{.base = xbase, .num_regs = 20, \
+		 .mask = ~ARIZONA_EQ1_B1_MODE }) }
+
+#define WM8285_OSR_ENUM_SIZE 5
+#define ARIZONA_RATE_ENUM_SIZE 5
+#define ARIZONA_SYNC_RATE_ENUM_SIZE 3
+#define ARIZONA_ASYNC_RATE_ENUM_SIZE 2
+#define ARIZONA_SAMPLE_RATE_ENUM_SIZE 14
+#define ARIZONA_ANC_INPUT_ENUM_SIZE 19
+#define WM8280_ANC_INPUT_ENUM_SIZE 13
+#define WM8285_ANC_INPUT_ENUM_SIZE 19
+#else
 #define ARIZONA_RATE_ENUM_SIZE 4
+#define ARIZONA_SAMPLE_RATE_ENUM_SIZE 14
+#define ARIZONA_OUT_RATE_ENUM_SIZE 3
+#endif
+
+
 extern const char *arizona_rate_text[ARIZONA_RATE_ENUM_SIZE];
 extern const int arizona_rate_val[ARIZONA_RATE_ENUM_SIZE];
+extern const char *arizona_sample_rate_text[ARIZONA_SAMPLE_RATE_ENUM_SIZE];
+extern const int arizona_sample_rate_val[ARIZONA_SAMPLE_RATE_ENUM_SIZE];
 
+extern const struct soc_enum arizona_sample_rate[];
 extern const struct soc_enum arizona_isrc_fsl[];
+extern const struct soc_enum arizona_isrc_fsh[];
+extern const struct soc_enum arizona_asrc_rate1;
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+extern const struct soc_enum wm8285_asrc1_rate[];
+extern const struct soc_enum wm8285_asrc2_rate[];
+extern const struct soc_enum arizona_input_rate;
+extern const struct soc_enum arizona_fx_rate;
+#endif
+extern const struct soc_enum arizona_output_rate;
+extern const struct soc_enum arizona_spdif_rate;
 
 extern const struct soc_enum arizona_in_vi_ramp;
 extern const struct soc_enum arizona_in_vd_ramp;
@@ -198,6 +321,18 @@ extern const struct soc_enum arizona_lhpf3_mode;
 extern const struct soc_enum arizona_lhpf4_mode;
 
 extern const struct soc_enum arizona_ng_hold;
+extern const struct soc_enum arizona_in_hpf_cut_enum;
+extern const struct soc_enum arizona_in_dmic_osr[];
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+extern const struct soc_enum wm8285_in_dmic_osr[];
+extern const struct soc_enum wm8285_anc_input_src[];
+extern const struct soc_enum wm8285_output_anc_src_defs[];
+#endif
+extern const struct soc_enum arizona_anc_input_src[];
+extern const struct soc_enum arizona_output_anc_src[];
+
+extern int arizona_put_anc_input(struct snd_kcontrol *kcontrol,
+			  struct snd_ctl_elem_value *ucontrol);
 
 extern int arizona_in_ev(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol,
@@ -208,11 +343,22 @@ extern int arizona_out_ev(struct snd_soc_dapm_widget *w,
 extern int arizona_hp_ev(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol,
 			 int event);
+extern int arizona_anc_ev(struct snd_soc_dapm_widget *w,
+			  struct snd_kcontrol *kcontrol,
+			  int event);
+
+extern int arizona_put_sample_rate_enum(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol);
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+extern int arizona_eq_coeff_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol);
+#endif
 
 extern int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 			      int source, unsigned int freq, int dir);
 
 extern const struct snd_soc_dai_ops arizona_dai_ops;
+extern const struct snd_soc_dai_ops arizona_simple_dai_ops;
 
 #define ARIZONA_FLL_NAME_LEN 20
 
@@ -223,6 +369,10 @@ struct arizona_fll {
 	unsigned int vco_mult;
 	struct completion ok;
 
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+	unsigned int fvco;
+	int outdiv;
+#endif
 	unsigned int fout;
 	int sync_src;
 	unsigned int sync_freq;
@@ -241,10 +391,30 @@ extern int arizona_set_fll(struct arizona_fll *fll, int source,
 			   unsigned int Fref, unsigned int Fout);
 
 extern int arizona_init_spk(struct snd_soc_codec *codec);
+extern int arizona_init_gpio(struct snd_soc_codec *codec);
+extern int arizona_init_mono(struct snd_soc_codec *codec);
+extern int arizona_init_input(struct snd_soc_codec *codec);
 
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+extern int arizona_adsp_power_ev(struct snd_soc_dapm_widget *w,
+				 struct snd_kcontrol *kcontrol,
+				 int event);
+#endif
 extern int arizona_init_dai(struct arizona_priv *priv, int dai);
 
 int arizona_set_output_mode(struct snd_soc_codec *codec, int output,
 			    bool diff);
 
+extern int arizona_set_hpdet_cb(struct snd_soc_codec *codec,
+				void (*hpdet_cb)(unsigned int measurement));
+extern int arizona_set_micd_cb(struct snd_soc_codec *codec,
+				void (*micd_cb)(bool mic));
+extern int arizona_set_ez2ctrl_cb(struct snd_soc_codec *codec,
+				  void (*ez2ctrl_trigger)(void));
+extern int arizona_set_custom_jd(struct snd_soc_codec *codec,
+				 const struct arizona_jd_state *custom_jd);
+#if defined(CONFIG_AUDIO_CODEC_FLORIDA)
+extern int arizona_enable_force_bypass(struct snd_soc_codec *codec);
+extern int arizona_disable_force_bypass(struct snd_soc_codec *codec);
+#endif
 #endif

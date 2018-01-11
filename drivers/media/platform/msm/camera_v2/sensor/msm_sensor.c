@@ -21,6 +21,13 @@
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
 
+#ifdef CONFIG_CAMERA_LED_PRE
+static uint32_t g_camera_id = 0;
+uint32_t get_camera_id(void) {
+	return g_camera_id;
+}
+#endif
+
 static struct v4l2_file_operations msm_sensor_v4l2_subdev_fops;
 static void msm_sensor_adjust_mclk(struct msm_camera_power_ctrl_t *ctrl)
 {
@@ -831,6 +838,9 @@ static int msm_sensor_config32(struct msm_sensor_ctrl_t *s_ctrl,
 	}
 
 	case CFG_POWER_UP:
+#ifdef CONFIG_CAMERA_LED_PRE
+		g_camera_id = s_ctrl->sensordata->cam_slave_info->camera_id;
+#endif
 		if (s_ctrl->sensor_state != MSM_SENSOR_POWER_DOWN) {
 			pr_err("%s:%d failed: invalid state %d\n", __func__,
 				__LINE__, s_ctrl->sensor_state);

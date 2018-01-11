@@ -340,6 +340,9 @@ static int pil_mss_loadable_init(struct modem_data *drv,
 			"qcom,active-clock-names", "gpll0_mss_clk") >= 0)
 		q6->gpll0_mss_clk = devm_clk_get(&pdev->dev, "gpll0_mss_clk");
 
+	q6->mba_region = of_property_read_bool(pdev->dev.of_node,
+			"qcom,pil-mba-region");
+
 	ret = pil_desc_init(q6_desc);
 
 	return ret;

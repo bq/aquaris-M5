@@ -166,6 +166,11 @@ enum actuator_type {
 	ACTUATOR_HVCM,
 };
 
+enum actuator_initial_position_type {
+	ACTUATOR_NORMAL,
+	ACTUATOR_MEDIUM,
+};
+
 enum msm_flash_driver_type {
 	FLASH_DRIVER_PMIC,
 	FLASH_DRIVER_I2C,

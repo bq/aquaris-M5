@@ -48,7 +48,11 @@ static struct led_classdev msm_torch_led[MAX_LED_TRIGGERS] = {
 };
 
 int32_t msm_led_torch_create_classdev(struct platform_device *pdev,
+#ifdef CONFIG_CAMERA_LED_PRE
+				void *data, uint32_t index)
+#else
 				void *data)
+#endif
 {
 	int32_t i, rc = 0;
 	struct msm_led_flash_ctrl_t *fctrl =
@@ -59,7 +63,11 @@ int32_t msm_led_torch_create_classdev(struct platform_device *pdev,
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_CAMERA_LED_PRE
+	for (i = index; i < fctrl->torch_num_sources && i < MAX_LED_TRIGGERS; i++) {
+#else
 	for (i = 0; i < fctrl->torch_num_sources; i++) {
+#endif
 		if (fctrl->torch_trigger[i]) {
 			torch_trigger = fctrl->torch_trigger[i];
 			msm_led_torch_brightness_set(&msm_torch_led[i],

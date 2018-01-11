@@ -85,6 +85,14 @@ enum msm_otg_phy_reg_mode {
 	USB_PHY_REG_LPM_OFF,
 };
 
+#ifdef CONFIG_SMB1360_CHARGER_FG_AQUARIS
+	extern void setAcInstat(void);//wuboadd
+	extern void acquire_AC_charger_wakelock(void);
+	extern void set_android_charging_enable(void);
+	extern void smb1360_set_usb_current_call(int current_limit_enable);
+	extern int first_mic;
+#endif	
+
 static char *override_phy_init;
 module_param(override_phy_init, charp, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(override_phy_init,
@@ -1885,6 +1893,20 @@ static int msm_otg_notify_chg_type(struct msm_otg *motg)
 		pr_err("No USB power supply registered!\n");
 		return -EINVAL;
 	}
+
+#ifdef CONFIG_SMB1360_CHARGER_FG_AQUARIS
+    if(charger_type == POWER_SUPPLY_TYPE_USB_DCP){
+		set_android_charging_enable();
+		setAcInstat();
+		if (1 == first_mic) {
+			smb1360_set_usb_current_call(1);
+		}
+		acquire_AC_charger_wakelock();
+    }
+	if(charger_type == POWER_SUPPLY_TYPE_USB){
+		set_android_charging_enable();	
+	}
+#endif
 
 	pr_debug("setting usb power supply type %d\n", charger_type);
 	msm_otg_dbg_log_event(&motg->phy, "SET USB PWR SUPPLY TYPE",

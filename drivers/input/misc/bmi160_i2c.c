@@ -1,7 +1,6 @@
 /*!
  * @section LICENSE
- * (C) Copyright 2011~2016 Bosch Sensortec GmbH All Rights Reserved
- *
+ * (C) Copyright 2011~2016 Bosch Sensortec GmbH All Rights Reserved *
  * This software program is licensed subject to the GNU General
  * Public License (GPL).Version 2,June 1991,
  * available at http://www.fsf.org/copyleft/gpl.html
@@ -277,7 +276,6 @@ static int bmi_i2c_probe(struct i2c_client *client,
 			goto exit_err_clean;
 		}
 
-		client_data->i2c = client;
 		client_data->device.bus_read = bmi_i2c_read_wrapper;
 		client_data->device.bus_write = bmi_i2c_write_wrapper;
 

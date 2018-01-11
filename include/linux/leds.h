@@ -26,6 +26,9 @@ struct device;
 enum led_brightness {
 	LED_OFF		= 0,
 	LED_HALF	= 127,
+#ifdef CONFIG_CAMERA_LED_PRE
+	LED_PRE 	= 200,
+#endif
 	LED_FULL	= 255,
 };
 

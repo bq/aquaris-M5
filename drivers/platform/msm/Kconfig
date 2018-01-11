@@ -72,6 +72,13 @@ config QPNP_VIBRATOR
 	  VIB_DRV_N line and can be controlled manually or by the DTEST lines.
 	  It uses the android timed-output framework.
 
+config QPNP_VIBRATOR_FILTER
+	tristate "Filter output for QPNP vibrator"
+	depends on QPNP_VIBRATOR
+	help
+	  This option enables filtering if vibrator signal output in in order
+	  to avoid intertia when typing on virtual keyboards
+
 config QPNP_REVID
 	tristate "QPNP Revision ID Peripheral"
 	depends on SPMI
@@ -254,4 +261,9 @@ config SEEMP_CORE
 	help
 		This option enables malware protection component
 		to log on-device software API activity.
+
+config CAMERA_LED_PRE
+	tristate "Camera flash led preprocessor"
+	help
+		This option enables flash preprocessor.
 endmenu

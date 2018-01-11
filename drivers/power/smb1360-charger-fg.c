@@ -261,6 +261,7 @@ enum {
 
 enum {
 	USER	= BIT(0),
+	BATT_OV = BIT(1),
 };
 
 enum {
@@ -331,6 +332,7 @@ struct smb1360_chip {
 	u8				soft_cold_rt_stat;
 	struct delayed_work		jeita_work;
 	struct delayed_work		delayed_init_work;
+	struct delayed_work		temp_report_work;
 	unsigned short			default_i2c_addr;
 	unsigned short			fg_i2c_addr;
 	bool				pulsed_irq;
@@ -398,6 +400,7 @@ struct smb1360_chip {
 	bool				otg_fet_present;
 	bool				fet_gain_enabled;
 	int				otg_fet_enable_gpio;
+	int				cfg_current_limited;
 
 	/* status tracking */
 	int				voltage_now;
@@ -418,12 +421,16 @@ struct smb1360_chip {
 	bool				irq_disabled;
 	bool				empty_soc;
 	bool				awake_min_soc;
+	bool				report_temp_by_d_work;
 	int				workaround_flags;
 	u8				irq_cfg_mask[3];
 	int				usb_psy_ma;
 	int				charging_disabled_status;
 	u32				connected_rid;
 	u32				profile_rid[BATTERY_PROFILE_MAX];
+	int				cold_soft_set_threshold;
+	int				hot_soft_set_threshold;
+	bool				batt_ov_update_threshold;
 
 	u32				peek_poke_address;
 	u32				fg_access_type;
@@ -455,6 +462,7 @@ struct smb1360_chip {
 	int				cold_hysteresis;
 	int				hot_hysteresis;
 };
+static int BatteryTestStatus_enable = 0;
 
 static int chg_time[] = {
 	192,
@@ -1936,6 +1944,210 @@ static int smb1360_battery_is_writeable(struct power_supply *psy,
 	}
 	return rc;
 }
+static ssize_t smb1360_battery_test_status_show(struct device *dev,
+					struct device_attribute *attr, char *buf)
+{
+	BatteryTestStatus_enable = 1;
+	return sprintf(buf, "%d\n", BatteryTestStatus_enable);
+}
+static ssize_t smb1360_battery_test_status_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	int retval;
+	unsigned int input;
+
+	if (sscanf(buf, "%u", &input) != 1) {
+		retval = -EINVAL;
+        BatteryTestStatus_enable = 0;
+		goto exit;
+	}
+
+	if (input != 1) {
+		retval = -EINVAL;
+        BatteryTestStatus_enable = 0;
+		goto exit;
+	}
+
+    BatteryTestStatus_enable = 1;
+
+
+exit:
+	return retval;
+}
+static int charging_timeout_status = 0;
+static ssize_t smb1360_charging_timeout_ctrl_show(struct device *dev,
+					struct device_attribute *attr, char *buf)
+{
+        int rc;
+        struct i2c_client *client = to_i2c_client(dev);
+        struct smb1360_chip *chip = i2c_get_clientdata(client);
+
+        charging_timeout_status = 1;
+        printk("charging_timeout_status = %d \n", charging_timeout_status);
+
+	/* safety timer disabled */
+	rc = smb1360_masked_write(chip, CFG_SFY_TIMER_CTRL_REG,
+			SAFETY_TIME_DISABLE_BIT, SAFETY_TIME_DISABLE_BIT);
+	if (rc < 0)
+		printk("Disable safety timer by manual failed\n");
+	else {
+		printk("Disable safety timer by manual sucess\n");
+	}
+
+	return sprintf(buf, "%d\n", charging_timeout_status);
+}
+#define DEFAULT_TEMP		250
+static int get_prop_batt_temp(struct device *dev)
+{
+	int rc = 0;
+	struct qpnp_vadc_result results;
+	struct qpnp_vadc_chip *vadc_dev = qpnp_get_vadc(dev, "smb1360");
+
+	rc = qpnp_vadc_read(vadc_dev, LR_MUX1_BATT_THERM, &results);
+	if (rc) {
+		pr_debug("Unable to read batt temperature rc=%d\n", rc);
+		return DEFAULT_TEMP;
+	}
+	pr_debug("get_bat_temp %d, %lld\n", results.adc_code,
+							results.physical);
+	return (int)results.physical;
+}
+static ssize_t smb1360_battery_pmic_thermal_temp(struct device *dev,
+					struct device_attribute *attr, char *buf)
+{
+	int temp = get_prop_batt_temp(dev);
+
+	return sprintf(buf, "%d\n", temp);
+}
+static int get_max_current(struct smb1360_chip *chip)
+{
+	int rc, smb1360_current;
+		u8 reg = 0;
+	u8 chg_current;
+		rc = smb1360_read(chip, CFG_BATT_CHG_ICL_REG, &reg);
+	if (rc) {
+		pr_err("Couldn't read CFG_BATT_CHG_ICL_REG rc=%d\n", rc);
+		return 0;
+	}
+	chg_current = reg & INPUT_CURR_LIM_MASK;
+	switch(chg_current){
+		case 0:
+			smb1360_current = 300;
+			break;
+		case 1:
+			smb1360_current = 400;
+			break;
+		case 2:
+			smb1360_current = 450;
+			break;
+		case 3:
+			smb1360_current = 500;
+			break;
+		case 4:
+			smb1360_current = 600;
+			break;
+		case 5:
+			smb1360_current = 700;
+			break;
+		case 6:
+			smb1360_current = 800;
+			break;
+		case 7:
+			smb1360_current = 850;
+			break;
+		case 8:
+			smb1360_current = 900;
+			break;
+		case 9:
+			smb1360_current = 950;
+			break;
+		case 10:
+			smb1360_current = 1000;
+			break;
+		case 11:
+			smb1360_current = 1100;
+			break;
+		case 12:
+			smb1360_current = 1200;
+			break;
+		case 13:
+			smb1360_current = 1300;
+			break;
+		case 14:
+			smb1360_current = 1400;
+			break;
+		case 15:
+			smb1360_current = 1500;
+			break;
+		default:
+			smb1360_current = 300;
+		}
+	return smb1360_current;
+}
+static ssize_t smb1360_get_max_current(struct device *dev,struct device_attribute *attr, char *buf)
+{
+	int smb1360_current;
+
+	struct i2c_client *client = to_i2c_client(dev);
+	struct smb1360_chip *chip = i2c_get_clientdata(client);
+
+	smb1360_current = get_max_current(chip);
+
+	return sprintf(buf, "%d\n", smb1360_current);
+}
+static struct device_attribute attrs[] = {
+	__ATTR(BatteryTestStatus, S_IRUGO | S_IWUSR | S_IWGRP,
+			smb1360_battery_test_status_show,
+			smb1360_battery_test_status_store),
+	__ATTR(current_max, S_IRUGO | S_IWUSR | S_IWGRP,
+			smb1360_get_max_current,
+			NULL),
+	__ATTR(pmic_thermal_temp, S_IRUGO | S_IWUSR | S_IWGRP,
+			smb1360_battery_pmic_thermal_temp,
+			NULL),
+	 __ATTR(charging_timeout_ctrl, S_IRUGO | S_IWUSR | S_IWGRP,
+			smb1360_charging_timeout_ctrl_show,
+			NULL),
+};
+void runin_work(struct smb1360_chip *chip, int batt_capacity)
+{
+	int rc;
+	static int once_time = 1;
+
+	printk("%s:BatteryTestStatus_enable = %d chip->usb_present = %d \n",
+			__func__,BatteryTestStatus_enable,chip->usb_present);
+
+	if (!chip->usb_present || !BatteryTestStatus_enable)
+		return;
+
+	if (BatteryTestStatus_enable && once_time) {
+		/* safety timer disabled */
+		rc = smb1360_masked_write(chip, CFG_SFY_TIMER_CTRL_REG,
+			SAFETY_TIME_DISABLE_BIT, SAFETY_TIME_DISABLE_BIT);
+	        if (rc < 0)
+			printk("Disable safety timer for runin_test failed\n");
+		else {
+			once_time = 0;
+			printk("Disable safety timer for runin_test sucess\n");
+		}
+	}
+
+	if (batt_capacity >= 80) {
+		pr_debug("smb1360_get_prop_batt_capacity > 80\n");
+		rc = smb1360_charging_disable(chip, USER, true);
+		if (rc)
+			dev_err(chip->dev,
+				"Couldn't disenable charge rc=%d\n", rc);
+	} else {
+		if (batt_capacity < 60) {
+		pr_debug("smb1360_get_prop_batt_capacity < 60\n");
+		rc = smb1360_charging_disable(chip, USER, false);
+		if (rc)
+			dev_err(chip->dev,
+					"Couldn't enable charge rc=%d\n", rc);
+		}
+	}
+}
 
 static int smb1360_battery_get_property(struct power_supply *psy,
 				       enum power_supply_property prop,
@@ -1962,6 +2174,7 @@ static int smb1360_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		val->intval = smb1360_get_prop_batt_capacity(chip);
+        runin_work(chip, val->intval);
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
 		val->intval = smb1360_get_prop_chg_full_design(chip);
@@ -1987,6 +2200,35 @@ static int smb1360_battery_get_property(struct power_supply *psy,
 	return 0;
 }
 
+#define TEMP_REPORT_DELAY_MS	60000
+static void bq_temp_report_work(struct work_struct *work)
+{
+       struct smb1360_chip *chip = container_of(work, struct smb1360_chip,
+                                                        temp_report_work.work);
+	int rc = 0;
+	int temp = 240;
+	static int reported_temp = 250;
+	union power_supply_propval prop = {0,};
+
+	rc = chip->batt_psy.get_property(&chip->batt_psy,
+						POWER_SUPPLY_PROP_TEMP, &prop);
+	if (rc == 0)
+		temp = prop.intval;
+        else
+		goto reschedule;
+
+	if (abs(temp - reported_temp) >= 10) {
+		power_supply_changed(&chip->batt_psy);
+		reported_temp = temp;
+                pr_info("reported_temp = %d\n", reported_temp);
+	}
+
+reschedule:
+	schedule_delayed_work(&chip->temp_report_work,
+					msecs_to_jiffies(TEMP_REPORT_DELAY_MS));
+	return;
+}
+
 static void smb1360_external_power_changed(struct power_supply *psy)
 {
 	struct smb1360_chip *chip = container_of(psy,
@@ -2002,6 +2244,10 @@ static void smb1360_external_power_changed(struct power_supply *psy)
 	else
 		current_limit = prop.intval / 1000;
 
+	if (chip->cfg_current_limited != -EINVAL) {
+		if (current_limit > chip->cfg_current_limited)
+			current_limit = chip->cfg_current_limited;
+	}
 	pr_debug("current_limit = %d\n", current_limit);
 
 	if (chip->usb_psy_ma != current_limit) {
@@ -2032,10 +2278,92 @@ static void smb1360_external_power_changed(struct power_supply *psy)
 		pr_err("could not set usb online, rc=%d\n", rc);
 }
 
+#define BATTERY_OV_BIT		BIT(6)
+#define SOFT_JEITA_HYSTERISIS	50
+static int check_battery_ov(struct smb1360_chip *chip)
+{
+	int rc = 0;
+	u8 reg = 0;
+
+	rc = smb1360_read(chip, IRQ_D_REG, &reg);
+	if (rc) {
+		pr_err("Unable to read IRQ_D_REG rc=%d\n", rc);
+		return rc;
+	}
+
+	pr_debug("batt_ov_update_threshold=%d batt-ov=%d batt_warm=%d batt_cool=%d batt_hot=%d batt_cold=%d\n",
+		chip->batt_ov_update_threshold, !!(reg & BATTERY_OV_BIT),
+		chip->batt_warm, chip->batt_cool, chip->batt_hot,
+		chip->batt_cold);
+
+	if (reg & BATTERY_OV_BIT) {
+		/* we have hit batt-ov, update the threshold */
+		if (chip->batt_warm) {
+			reg = TEMP_THRE_SET(chip->hot_soft_set_threshold
+						- SOFT_JEITA_HYSTERISIS);
+			rc = smb1360_write(chip, JEITA_SOFT_HOT_REG, reg);
+			if (rc)
+				pr_err("Unable to set hot soft hysterisis rc=%d\n",
+									rc);
+			else
+				pr_debug("Setting hot-soft threahold to %d\n",
+							reg);
+
+			chip->batt_ov_update_threshold = true;
+		} else if (chip->batt_cool) {
+			reg = TEMP_THRE_SET(chip->cold_soft_set_threshold
+						+ SOFT_JEITA_HYSTERISIS);
+			rc = smb1360_write(chip, JEITA_SOFT_COLD_REG, reg);
+			if (rc)
+				pr_err("Unable to set cold soft hysterisis rc=%d\n",
+									rc);
+			else
+				pr_debug("Setting hot-soft threahold to %d\n",
+									reg);
+
+			chip->batt_ov_update_threshold = true;
+		}
+	}
+
+	if (!chip->batt_warm && !chip->batt_cool &&
+			chip->batt_ov_update_threshold) {
+
+		/* recovered from jeita & clear batt-ov */
+		pr_debug("Clearing OV and resetting bacj the JEITA thresholds\n");
+
+		reg = TEMP_THRE_SET(chip->hot_soft_set_threshold);
+		rc = smb1360_write(chip, JEITA_SOFT_HOT_REG, reg);
+		if (rc)
+			pr_err("Unable to set cold soft hysterisis rc=%d\n",
+								rc);
+		reg = TEMP_THRE_SET(chip->cold_soft_set_threshold);
+		rc = smb1360_write(chip, JEITA_SOFT_COLD_REG, reg);
+		if (rc)
+			pr_err("Unable to set cold soft hysterisis rc=%d\n",
+								rc);
+		/* Clear OV - disable and enable charging */
+		rc = smb1360_charging_disable(chip, BATT_OV, true);
+		if (rc)
+			pr_err("Disable charging(BATT_OV) failed rc=%d\n", rc);
+		rc = smb1360_charging_disable(chip, BATT_OV, false);
+		if (rc)
+			pr_err("Enable charging(BATT_OV) failed rc=%d\n", rc);
+
+		chip->batt_ov_update_threshold = false;
+	}
+
+	return rc;
+}
+
 static int hot_hard_handler(struct smb1360_chip *chip, u8 rt_stat)
 {
+	int rc;
 	pr_debug("rt_stat = 0x%02x\n", rt_stat);
 	chip->batt_hot = !!rt_stat;
+
+	rc = check_battery_ov(chip);
+	if (rc)
+		pr_err("Unable to check batt-ov condition rc=%d\n", rc);
 
 	if (chip->parallel_charging) {
 		pr_debug("%s parallel-charging\n", chip->batt_hot ?
@@ -2054,8 +2382,13 @@ static int hot_hard_handler(struct smb1360_chip *chip, u8 rt_stat)
 
 static int cold_hard_handler(struct smb1360_chip *chip, u8 rt_stat)
 {
+	int rc;
 	pr_debug("rt_stat = 0x%02x\n", rt_stat);
 	chip->batt_cold = !!rt_stat;
+
+	rc = check_battery_ov(chip);
+	if (rc)
+		pr_err("Unable to check batt-ov condition rc=%d\n", rc);
 
 	if (chip->parallel_charging) {
 		pr_debug("%s parallel-charging\n", chip->batt_cold ?
@@ -2206,10 +2539,15 @@ end:
 
 static int hot_soft_handler(struct smb1360_chip *chip, u8 rt_stat)
 {
+	int rc;
 	chip->soft_hot_rt_stat = rt_stat;
 	pr_debug("rt_stat = 0x%02x\n", rt_stat);
 	if (!chip->config_hard_thresholds)
 		chip->batt_warm = !!rt_stat;
+
+	rc = check_battery_ov(chip);
+	if (rc)
+		pr_err("Unable to check batt-ov condition rc=%d\n", rc);
 
 	if (chip->workaround_flags & WRKRND_HARD_JEITA) {
 		cancel_delayed_work_sync(&chip->jeita_work);
@@ -2230,10 +2568,15 @@ static int hot_soft_handler(struct smb1360_chip *chip, u8 rt_stat)
 
 static int cold_soft_handler(struct smb1360_chip *chip, u8 rt_stat)
 {
+	int rc;
 	chip->soft_cold_rt_stat = rt_stat;
 	pr_debug("rt_stat = 0x%02x\n", rt_stat);
 	if (!chip->config_hard_thresholds)
 		chip->batt_cool = !!rt_stat;
+
+	rc = check_battery_ov(chip);
+	if (rc)
+		pr_err("Unable to check batt-ov condition rc=%d\n", rc);
 
 	if (chip->workaround_flags & WRKRND_HARD_JEITA) {
 		cancel_delayed_work_sync(&chip->jeita_work);
@@ -2315,6 +2658,25 @@ static int usbin_uv_handler(struct smb1360_chip *chip, u8 rt_stat)
 
 	return 0;
 }
+static int usbin_ov_handler(struct smb1360_chip *chip, u8 rt_stat){ 
+	/*	 * rt_stat indicates if usb is overvolted. If so usb_present	
+	 * should be marked removed  */ bool usb_present = !rt_stat;	
+	int health; 
+	printk("chip->usb_present = %d usb_present = %d\n",chip->usb_present, usb_present);
+	if (chip->usb_present && !usb_present) {		
+		/* USB removed */		
+		chip->usb_present = usb_present;		
+		printk("setting usb psy type = %d\n",POWER_SUPPLY_TYPE_UNKNOWN); 
+		power_supply_set_supply_type(chip->usb_psy,POWER_SUPPLY_TYPE_UNKNOWN); 	
+		power_supply_set_present(chip->usb_psy, usb_present);	
+	}	
+	if (chip->usb_psy) {		
+		health = rt_stat ? POWER_SUPPLY_HEALTH_OVERVOLTAGE : POWER_SUPPLY_HEALTH_GOOD; 	  
+		printk("POWER_SUPPLY_HEALTH_OVERVOLTAGE = 5 POWER_SUPPLY_HEALTH_GOOD = 1 health=%d \n", health); 
+		power_supply_set_health_state(chip->usb_psy, health);	
+	}
+	return 0;
+}
 
 static int aicl_done_handler(struct smb1360_chip *chip, u8 rt_stat)
 {
@@ -2327,6 +2689,20 @@ static int aicl_done_handler(struct smb1360_chip *chip, u8 rt_stat)
 		smb1360_stay_awake(&chip->smb1360_ws, WAKEUP_SRC_PARALLEL);
 		schedule_work(&chip->parallel_work);
 	}
+
+	return 0;
+}
+
+static int batt_ov_handler(struct smb1360_chip *chip, u8 rt_stat)
+{
+	bool batt_ov = !!rt_stat;
+	int rc;
+
+	pr_debug("Batt-OV=%d\n", batt_ov);
+
+	rc = check_battery_ov(chip);
+	if (rc)
+		pr_err("Unable to check batt-ov condition rc=%d\n", rc);
 
 	return 0;
 }
@@ -2665,6 +3041,7 @@ static struct irq_handler_info handlers[] = {
 			},
 			{
 				.name		= "battery_ov",
+				.smb_irq	= batt_ov_handler,
 			},
 		},
 	},
@@ -2676,6 +3053,7 @@ static struct irq_handler_info handlers[] = {
 			},
 			{
 				.name		= "usbin_ov",
+                .smb_irq	= usbin_ov_handler,
 			},
 			{
 				.name		= "unused",
@@ -3576,6 +3954,9 @@ static int determine_initial_status(struct smb1360_chip *chip)
 	}
 	UPDATE_IRQ_STAT(IRQ_E_REG, reg);
 
+	/* check battery-ov condition */
+	check_battery_ov(chip);
+
 	chip->usb_present = (reg & IRQ_E_USBIN_UV_BIT) ? false : true;
 	power_supply_set_present(chip->usb_psy, chip->usb_present);
 
@@ -3946,6 +4327,7 @@ static int smb1360_jeita_init(struct smb1360_chip *chip)
 {
 	int rc = 0;
 	int temp;
+	u8 reg;
 
 	if (chip->config_hard_thresholds) {
 		if (chip->soft_jeita_supported) {
@@ -3999,6 +4381,25 @@ static int smb1360_jeita_init(struct smb1360_chip *chip)
 			}
 		}
 	}
+
+	/* store the configured hot/soft thresholds */
+	rc = smb1360_read(chip, JEITA_SOFT_COLD_REG, &reg);
+	if (rc) {
+		pr_err("Unable to read soft-cold threshold %d\n", rc);
+		return rc;
+	}
+	chip->cold_soft_set_threshold = (reg * 10) - 300;
+
+	rc = smb1360_read(chip, JEITA_SOFT_HOT_REG, &reg);
+	if (rc) {
+		pr_err("Unable to read soft-hard threshold %d\n", rc);
+		return rc;
+	}
+	chip->hot_soft_set_threshold = (reg * 10) - 300;
+
+	pr_debug("chip->cold_soft_set_threshold=%d chip->hot_soft_set_threshold=%d\n",
+			chip->cold_soft_set_threshold,
+			chip->hot_soft_set_threshold);
 
 	return rc;
 }
@@ -4869,6 +5270,8 @@ static int smb_parse_dt(struct smb1360_chip *chip)
 	if (rc < 0)
 		chip->fg_auto_recharge_soc = -EINVAL;
 
+	chip->report_temp_by_d_work = of_property_read_bool(node,
+						"qcom,report-temp-by-d-work");
 	if (of_property_read_bool(node, "qcom,fg-reset-at-pon")) {
 		chip->fg_reset_at_pon = true;
 		rc = of_property_read_u32(node, "qcom,fg-reset-thresold-mv",
@@ -4879,6 +5282,12 @@ static int smb_parse_dt(struct smb1360_chip *chip)
 		}
 	}
 
+	rc = of_property_read_u32(node, "qcom,cfg-current-limited",
+					&chip->cfg_current_limited);
+	if (rc < 0)
+		chip->cfg_current_limited = -EINVAL;
+	else
+		pr_debug("set cfg_current_limited = %d\n", chip->cfg_current_limited);
 	return 0;
 }
 
@@ -4914,8 +5323,9 @@ static int smb1360_probe(struct i2c_client *client,
 	INIT_DELAYED_WORK(&chip->jeita_work, smb1360_jeita_work_fn);
 	INIT_DELAYED_WORK(&chip->delayed_init_work,
 			smb1360_delayed_init_work_fn);
+	INIT_DELAYED_WORK(&chip->temp_report_work, bq_temp_report_work);
 	init_completion(&chip->fg_mem_access_granted);
-	smb1360_wakeup_src_init(chip);
+	
 
 	/* probe the device to check if its actually connected */
 	rc = smb1360_read(chip, CFG_BATT_CHG_REG, &reg);
@@ -4933,6 +5343,7 @@ static int smb1360_probe(struct i2c_client *client,
 		dev_err(&client->dev, "Unable to parse DT nodes\n");
 		return rc;
 	}
+	smb1360_wakeup_src_init(chip);
 
 	device_init_wakeup(chip->dev, 1);
 	i2c_set_clientdata(client, chip);
@@ -4976,6 +5387,43 @@ static int smb1360_probe(struct i2c_client *client,
 	chip->batt_psy.num_properties  = ARRAY_SIZE(smb1360_battery_properties);
 	chip->batt_psy.external_power_changed = smb1360_external_power_changed;
 	chip->batt_psy.property_is_writeable = smb1360_battery_is_writeable;
+	rc = sysfs_create_file(&chip->client->dev.kobj,
+							&attrs[0].attr);
+	if (rc < 0) {
+		dev_err(&chip->client->dev,
+				"%s: Failed to create sysfs attributes\n",
+				__func__);
+		sysfs_remove_file(&chip->client->dev.kobj,
+				&attrs[0].attr);
+	}
+		rc = sysfs_create_file(&chip->client->dev.kobj,
+					&attrs[1].attr);
+		if (rc < 0) {
+	        dev_err(&chip->client->dev,
+					"%s: Failed to create sysfs attributes 1\n",
+					__func__);
+	        sysfs_remove_file(&chip->client->dev.kobj,
+					&attrs[1].attr);
+		}
+
+		rc = sysfs_create_file(&chip->client->dev.kobj,
+					&attrs[2].attr);
+		if (rc < 0) {
+			dev_err(&chip->client->dev,
+					"%s: Failed to create sysfs attributes 2\n",
+					__func__);
+	        sysfs_remove_file(&chip->client->dev.kobj,
+					&attrs[2].attr);
+		}
+	rc = sysfs_create_file(&chip->client->dev.kobj,
+							&attrs[3].attr);
+        if (rc < 0) {
+                dev_err(&chip->client->dev,
+                                "%s: Failed to create sysfs attributes 3\n",
+                                __func__);
+                sysfs_remove_file(&chip->client->dev.kobj,
+                                &attrs[3].attr);
+        }
 
 	rc = power_supply_register(chip->dev, &chip->batt_psy);
 	if (rc < 0) {
@@ -5115,6 +5563,10 @@ static int smb1360_probe(struct i2c_client *client,
 				rc);
 	}
 
+	if(chip->report_temp_by_d_work)
+		schedule_delayed_work(&chip->temp_report_work,
+					msecs_to_jiffies(TEMP_REPORT_DELAY_MS));
+
 	dev_info(chip->dev, "SMB1360 revision=0x%x probe success! batt=%d usb=%d soc=%d\n",
 			chip->revision,
 			smb1360_get_prop_batt_present(chip),
@@ -5142,7 +5594,15 @@ static int smb1360_remove(struct i2c_client *client)
 	mutex_destroy(&chip->otp_gain_lock);
 	mutex_destroy(&chip->fg_access_request_lock);
 	debugfs_remove_recursive(chip->debug_root);
+	sysfs_remove_file(&chip->client->dev.kobj,
+						&attrs[3].attr);
 
+		sysfs_remove_file(&chip->client->dev.kobj,
+					&attrs[2].attr);
+		sysfs_remove_file(&chip->client->dev.kobj,
+					&attrs[1].attr);
+        sysfs_remove_file(&chip->client->dev.kobj,
+                                                &attrs[0].attr);
 	return 0;
 }
 
@@ -5233,10 +5693,31 @@ static void smb1360_shutdown(struct i2c_client *client)
 {
 	int rc;
 	struct smb1360_chip *chip = i2c_get_clientdata(client);
+	u8 reg;
+
+	/* restore back hot-soft and cold-soft thresholds */
+	reg = TEMP_THRE_SET(chip->hot_soft_set_threshold);
+	rc = smb1360_write(chip, JEITA_SOFT_HOT_REG, reg);
+	if (rc)
+		pr_err("Unable to set cold soft hysterisis rc=%d\n",
+							rc);
+	reg = TEMP_THRE_SET(chip->cold_soft_set_threshold);
+	rc = smb1360_write(chip, JEITA_SOFT_COLD_REG, reg);
+	if (rc)
+		pr_err("Unable to set cold soft hysterisis rc=%d\n",
+								rc);
 
 	rc = smb1360_otg_disable(chip);
 	if (rc)
 		pr_err("Couldn't disable OTG mode rc=%d\n", rc);
+
+	/* Clear OV - disable and enable charging */
+	rc = smb1360_charging_disable(chip, BATT_OV, true);
+	if (rc)
+		pr_err("Disable charging(BATT_OV) failed rc=%d\n", rc);
+	rc = smb1360_charging_disable(chip, BATT_OV, false);
+	if (rc)
+		pr_err("Enable charging(BATT_OV) failed rc=%d\n", rc);
 
 	if (chip->shdn_after_pwroff) {
 		rc = smb1360_poweroff(chip);

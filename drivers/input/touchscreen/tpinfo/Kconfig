@@ -1,0 +1,8 @@
+config TOUCHSCREEN_TP_INFO
+        bool "TPInfo touchscreen"
+        default n
+        help
+          Say Y here if you have a TP Info module
+
+          If unsure, say N.
+
