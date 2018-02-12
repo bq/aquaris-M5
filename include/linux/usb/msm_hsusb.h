@@ -313,6 +313,7 @@ struct msm_otg_platform_data {
 	int usb_id_gpio;
 	int hub_reset_gpio;
 	int switch_sel_gpio;
+	int usbid_switch_gpio;
 	bool phy_dvdd_always_on;
 	struct clk *system_clk;
 };

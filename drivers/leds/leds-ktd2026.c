@@ -128,11 +128,13 @@ static int ktd20xx_write_reg(struct i2c_client *client, u8 reg, u8 val)
 	return ret;
 }
 
-
+static int ktd20xx_color_to_led_position(struct ktd20xx_led *led, enum led_colors color) {
+	return (led->pdata[color].led_number - 1);
+}
 
 static int ktd20xx_state_led_bit(struct ktd20xx_led *led, enum led_bits state,
 							enum led_colors color) {
-	return state << ((led->pdata[color].led_number - 1) * 2);
+	return state << (ktd20xx_color_to_led_position(led, color) * 2);
 }
 
 
@@ -241,7 +243,7 @@ static int ktd20xx_set_led_brightness(struct ktd20xx_led *led, enum led_colors c
 		printk(KERN_ERR "%s %d color %d value %d \n", __func__, __LINE__, color, value);
 	}
 
-	ret |= ktd20xx_write_reg(led->client, KTD_REG_LCFG+color, (u8)value);
+	ret |= ktd20xx_write_reg(led->client, KTD_REG_LCFG + ktd20xx_color_to_led_position(led, color), (u8)value);
 	ret |= ktd20xx_write_reg(led->client, KTD_REG_RSTR, 0x00);
 	ret |= ktd20xx_turn_on_led(led);
 	return ret;
@@ -431,7 +433,7 @@ static int ktd20xx_set_led_blink(struct ktd20xx_led *led, enum led_colors color,
 	}
 
 	ktd20xx_write_reg(led->client, KTD_REG_RSTR, 0x00);// mode set---IC work when both SCL and SDA goes high
-	ktd20xx_write_reg(led->client, KTD_REG_LCFG+color, brightness);
+	ktd20xx_write_reg(led->client, KTD_REG_LCFG + ktd20xx_color_to_led_position(led, color), brightness);
 	
 	ret |= ktd20xx_write_reg(led->client, KTD_REG_R_F,  ramp_times);
 	ret |= ktd20xx_write_reg(led->client, KTD_REG_HOLD, period);

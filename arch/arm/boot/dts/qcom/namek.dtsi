@@ -27,19 +27,70 @@
 };
 
 &tlmm_pinmux {
+	pn544_nfc_int {
+		qcom,pins = <&gp 21>;
+		qcom,pin-func = <0>;
+		qcom,num-grp-pins = <1>;
+		label = "pn544_nfc_int";
+
+		nxp_nfc_int_active: active {
+			drive-strength = <6>;
+			bias-pull-up;
+		};
+
+		nxp_nfc_int_suspend: suspend {
+			drive-strength = <6>;
+			bias-pull-up;
+		};
+	};
+
+	pn544_nfc_ven {
+		qcom,pins = <&gp 20>;
+		qcom,pin-func = <0>;
+		qcom,num-grp-pins = <1>;
+		label = "pn544_nfc_ven";
+
+		nxp_nfc_disable_active: active {
+			drive-strength = <6>;
+			bias-pull-up;
+		};
+
+		nxp_nfc_disable_suspend: suspend {
+			drive-strength = <6>;
+			bias-disable;
+		};
+	};
+
+	pn544_nfc_firm {
+		qcom,pins = <&gp 121>;
+		qcom,pin-func = <0>;
+		qcom,num-grp-pins = <1>;
+		label = "pn544_nfc_firm";
+
+		nxp_firm_disable_active: active {
+			drive-strength = <6>;
+			bias-pull-up;
+		};
+
+		nxp_firm_disable_suspend: suspend {
+			drive-strength = <6>;
+			bias-disable;
+		};
+	};
+
 	SGM3780_pins {
 		status = "disabled";
 	};
 
-	pmx_nfc_reset {
+	/*pmx_nfc_reset {
 		/delete-property/ qcom,pins;
-	};
+	};*/
 
 	pmx_mdss {
-		mdss_dsi_active {
+		active {
 			output-high;
 		};
-		mdss_dsi_suspend {
+		suspend {
 			output-low;
 		};
 	};
@@ -282,19 +333,22 @@
 		status = "disabled";
 	};
 
-	nfc-pn544@28 {
-		compatible = "nxp,nfc-pn544";
+	nxp@28 {
+		compatible = "nxp,pn547";
 		reg = <0x28>;
-		nxp,irq-gpio = <&msm_gpio 21 0x00>;
-		nxp,ven-gpio = <&msm_gpio 20 0x00>;
-		nxp,clk-src = "BBCLK2";
+		qcom,nxp-irq = <&msm_gpio 21 0x00>;
+		qcom,nxp-ven = <&msm_gpio 20 0x00>;
+		qcom,nxp-dw-req = <&msm_gpio 121 0x00>;
+		qcom,nxp-clkreq = <&pm8916_gpios 2 0x00>;
 		interrupt-parent = <&msm_gpio>;
+		qcom,clk-src = "BBCLK2";
 		interrupts = <21 0>;
 		interrupt-names = "nfc_irq";
-		nxp,clkreq-gpio = <&pm8916_gpios 2 0>;
+		pinctrl-names = "nfc_active", "nfc_suspend";
+		pinctrl-0 = <&nxp_nfc_int_active &nxp_nfc_disable_active &nxp_firm_disable_active>;
+		pinctrl-1 = <&nxp_nfc_int_suspend &nxp_nfc_disable_suspend &nxp_firm_disable_suspend>;
 		clocks = <&clock_rpm clk_bb_clk2_pin>;
 		clock-names = "ref_clk";
-		nxp,firm-gpio = <&msm_gpio 121 0x00>;
 	};
 };
 
@@ -403,14 +457,6 @@
 	spk_vreg: regulator_spk {
 		gpio = <&msm_gpio 98 1>;
 	};
-
-	rpm-regulator-ldoa6 {
-		regulator-always-on;
-	};
-
-	rpm-regulator-ldoa17 {
-		regulator-always-on;
-	};
 };
 
 &slim_msm {
@@ -511,4 +557,18 @@
 			2 &msm_gpio 38 0>;
 	interrupt-names = "hc_irq", "pwr_irq", "status_irq";
 	cd-gpios = <&msm_gpio 38 0x1>;
+};
+
+&rpm_bus {
+	rpm-regulator-ldoa6 {
+		pm8916_l6: regulator-l6 {
+			regulator-always-on;
+		};
+	};
+
+	rpm-regulator-ldoa17 {
+		pm8916_l17: regulator-l17 {
+			regulator-always-on;
+		};
+	};
 };
